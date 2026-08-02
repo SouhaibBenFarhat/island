@@ -105,11 +105,13 @@ final class IslandPanelController {
     }
 
     private func placeInitially() {
-        guard let bounds = currentScreenBounds() else { return }
+        let screens = NSScreen.screens.map(\.visibleFrame)
+        guard let preferred = NSScreen.main?.visibleFrame ?? screens.first else { return }
         let frame = PanelPlacement.resolveFrame(
             savedOrigin: state.settings.panelOrigin,
             size: panel.frame.size,
-            in: bounds
+            screens: screens,
+            preferred: preferred
         )
         panel.setFrame(frame, display: false)
     }
@@ -127,9 +129,13 @@ final class IslandPanelController {
         state.settings.panelOrigin = panel.frame.origin
     }
 
-    /// The usable area of the screen the island is on — menu bar and Dock
-    /// excluded — falling back to the main screen after a display change.
+    /// The usable area of the display the island is actually on — menu bar and
+    /// Dock excluded. Checks every screen, so an island parked on a second
+    /// monitor isn't clamped against the built-in one.
     private func currentScreenBounds() -> CGRect? {
-        (panel.screen ?? NSScreen.main)?.visibleFrame
+        let screens = NSScreen.screens.map(\.visibleFrame)
+        return PanelPlacement.bestScreen(for: panel.frame, among: screens)
+            ?? NSScreen.main?.visibleFrame
+            ?? screens.first
     }
 }

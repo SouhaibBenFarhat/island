@@ -29,24 +29,28 @@ struct IslandView: View {
     // MARK: - Layouts
 
     private var collapsedBar: some View {
-        Button(action: toggleCollapsed) {
-            IslandMark()
-                .padding(.horizontal, 11)
-                .frame(height: Theme.barHeight - 10)
-        }
-        .buttonStyle(.plain)
-        .help("Show Island items")
-        .background(DragCatcher(dragger: dragger))
-        .islandSurface()
+        IslandMark()
+            .padding(.horizontal, 11)
+            .frame(height: Theme.barHeight - 10)
+            .contentShape(Rectangle())
+            .islandDraggable(dragger, onTap: toggleCollapsed)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel("Show Island items")
+            .help("Click to show your items · drag to move")
+            .background(DragCatcher(dragger: dragger))
+            .islandSurface()
     }
 
     private var expandedBar: some View {
         HStack(spacing: Theme.itemSpacing) {
-            Button(action: toggleCollapsed) {
-                IslandMark().padding(.horizontal, 3)
-            }
-            .buttonStyle(.plain)
-            .help("Collapse the island")
+            IslandMark()
+                .padding(.horizontal, 3)
+                .frame(height: Theme.barHeight)
+                .contentShape(Rectangle())
+                .islandDraggable(dragger, onTap: toggleCollapsed)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel("Collapse the island")
+                .help("Click to collapse · drag to move")
 
             rule
 
@@ -61,6 +65,7 @@ struct IslandView: View {
                     SnippetChip(
                         snippet: snippet,
                         isConfirmed: state.lastInsertedID == snippet.id,
+                        dragger: dragger,
                         action: { state.insert(snippet) }
                     )
                 }
@@ -69,7 +74,7 @@ struct IslandView: View {
 
             rule
 
-            IconButton(symbol: "plus", help: "Add or edit items", action: onEdit)
+            IconButton(symbol: "plus", help: "Add or edit items", dragger: dragger, action: onEdit)
         }
         .padding(.horizontal, Theme.barPadding)
         .frame(height: Theme.barHeight)
@@ -86,27 +91,28 @@ struct IslandView: View {
     }
 
     private var emptyHint: some View {
-        Button(action: onEdit) {
-            Text("Add your first item")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-        }
-        .buttonStyle(.plain)
+        Text("Add your first item")
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .frame(height: 26)
+            .contentShape(Rectangle())
+            .islandDraggable(dragger, onTap: onEdit)
+            .accessibilityAddTraits(.isButton)
     }
 
     private var permissionChip: some View {
-        Button(action: AccessibilityAccess.openSettings) {
-            Label("Allow access", systemImage: "exclamationmark.triangle.fill")
-                .font(.system(size: 11, weight: .medium))
-                .labelStyle(.titleAndIcon)
-                .foregroundStyle(Theme.accent)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(Theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .help("Island needs Accessibility access to type into other apps")
+        Label("Allow access", systemImage: "exclamationmark.triangle.fill")
+            .font(.system(size: 11, weight: .medium))
+            .labelStyle(.titleAndIcon)
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(Theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous))
+            .islandDraggable(dragger, onTap: AccessibilityAccess.openSettings)
+            .accessibilityAddTraits(.isButton)
+            .help("Island needs Accessibility access to type into other apps")
     }
 
     private var overflowMenu: some View {
@@ -147,29 +153,30 @@ struct IslandView: View {
 struct SnippetChip: View {
     let snippet: Snippet
     let isConfirmed: Bool
+    let dragger: PanelDragger
     let action: () -> Void
 
     @State private var isHovering = false
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                if isConfirmed {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Theme.accent)
-                }
-                Text(snippet.displayLabel)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(isConfirmed ? Theme.accent : Color.primary.opacity(0.85))
-                    .lineLimit(1)
+        HStack(spacing: 4) {
+            if isConfirmed {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Theme.accent)
             }
-            .padding(.horizontal, 9)
-            .frame(height: 26)
-            .background(background, in: RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous))
+            Text(snippet.displayLabel)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(isConfirmed ? Theme.accent : Color.primary.opacity(0.85))
+                .lineLimit(1)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 9)
+        .frame(height: 26)
+        .background(background, in: RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous))
+        .islandDraggable(dragger, onTap: action)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(snippet.displayLabel)
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.12), value: isHovering)
         .animation(.easeOut(duration: 0.12), value: isConfirmed)
@@ -186,72 +193,124 @@ struct SnippetChip: View {
 struct IconButton: View {
     let symbol: String
     let help: String
+    let dragger: PanelDragger
     let action: () -> Void
 
     @State private var isHovering = false
 
     var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 26, height: 26)
-                .background(
-                    isHovering ? Theme.chipHover : Theme.chipRest,
-                    in: RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous)
-                )
-                .contentShape(RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
-        .help(help)
+        Image(systemName: symbol)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: 26, height: 26)
+            .background(
+                isHovering ? Theme.chipHover : Theme.chipRest,
+                in: RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous))
+            .islandDraggable(dragger, onTap: action)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(help)
+            .onHover { isHovering = $0 }
+            .help(help)
     }
 }
 
 /// Lets you drag the island by its empty background.
 ///
 /// It sits behind the chips as a plain SwiftUI layer, so a click on a chip
-/// still reaches the button — an AppKit subview here would swallow every click.
+/// still reaches the chip — an AppKit subview here would swallow every click.
 struct DragCatcher: View {
     let dragger: PanelDragger
 
     var body: some View {
         Color.clear
             .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 1)
-                    .onChanged { _ in dragger.followMouse() }
-                    .onEnded { _ in dragger.finish() }
-            )
+            .islandDraggable(dragger)
+    }
+}
+
+extension View {
+    /// Makes this view move the island when dragged, and run `onTap` when it's
+    /// clicked without moving.
+    ///
+    /// Every part of the bar uses this, so you can grab the island anywhere —
+    /// including on a chip — without losing the click that inserts its text.
+    func islandDraggable(_ dragger: PanelDragger, onTap: @escaping () -> Void = {}) -> some View {
+        gesture(
+            // minimumDistance 0 so a plain click is still delivered here; the
+            // drag/click split is decided by how far the pointer actually moved.
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in dragger.update() }
+                .onEnded { _ in if !dragger.finish() { onTap() } }
+        )
     }
 }
 
 /// Moves the panel with the pointer.
 ///
-/// SwiftUI's drag translation is measured inside a window that is itself
-/// moving, so it feeds back on itself. Reading the screen position of the
-/// mouse each step and applying the delta keeps the island under the cursor.
+/// SwiftUI decides *what* you grabbed; AppKit does the moving. Nudging the
+/// window from inside `onChanged` fights itself — SwiftUI measures the drag
+/// inside the very window being moved, so each step feeds back into the next
+/// and the island stutters. `performDrag(with:)` hands the whole thing to the
+/// window server, which tracks the pointer exactly.
 @MainActor
 final class PanelDragger {
+    /// How far the pointer must travel before this counts as a drag rather
+    /// than a click. Small enough to feel immediate, large enough that a shaky
+    /// click on a chip still inserts its text.
+    static let dragThreshold: CGFloat = 3
+
     weak var panel: NSPanel?
     var onFinish: (() -> Void)?
 
-    private var lastMouse: CGPoint?
-
-    func followMouse() {
-        let mouse = NSEvent.mouseLocation
-        defer { lastMouse = mouse }
-        guard let panel, let last = lastMouse else { return }
-        panel.setFrameOrigin(
-            CGPoint(
-                x: panel.frame.origin.x + (mouse.x - last.x),
-                y: panel.frame.origin.y + (mouse.y - last.y)
-            )
-        )
+    private enum Phase {
+        case idle
+        /// Mouse is down but hasn't travelled far enough to be a drag yet.
+        case pressed(start: CGPoint)
+        /// A drag ran to completion; the click that ends it must be swallowed.
+        case dragged
     }
 
-    func finish() {
-        lastMouse = nil
+    private var phase: Phase = .idle
+
+    func update() {
+        switch phase {
+        case .pressed(let start):
+            let mouse = NSEvent.mouseLocation
+            guard hypot(mouse.x - start.x, mouse.y - start.y) >= Self.dragThreshold else { return }
+            beginDrag()
+
+        case .idle:
+            phase = .pressed(start: NSEvent.mouseLocation)
+
+        case .dragged:
+            // `performDrag` swallows the mouse-up, so SwiftUI may never send
+            // .onEnded and clear this. If the button is down again it's a new
+            // gesture; otherwise it's a stray event from the one just finished.
+            guard NSEvent.pressedMouseButtons & 1 != 0 else { return }
+            phase = .pressed(start: NSEvent.mouseLocation)
+        }
+    }
+
+    /// Ends the gesture. Returns true when it was a real drag, so the caller
+    /// knows to skip the click action.
+    @discardableResult
+    func finish() -> Bool {
+        if case .dragged = phase {
+            phase = .idle
+            return true
+        }
+        phase = .idle
+        return false
+    }
+
+    private func beginDrag() {
+        guard let panel, let event = NSApp.currentEvent, event.type == .leftMouseDragged else {
+            return // No usable event yet — try again on the next update.
+        }
+        phase = .dragged
+        panel.performDrag(with: event) // Blocks until you let go.
         onFinish?()
     }
 }
