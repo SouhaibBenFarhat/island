@@ -91,11 +91,14 @@ final class IslandPanelController {
     private func fitToContent() {
         let size = hostingView.fittingSize
         guard size.width > 0, size.height > 0 else { return }
-        guard size != panel.frame.size else { return }
 
-        // Keep the left edge put so the bar grows rightwards rather than
-        // sliding out from under the pointer.
-        let origin = panel.frame.origin
+        let current = panel.frame
+        guard size != current.size else { return }
+
+        // Pin the top-left corner: the bar grows rightwards and downwards from
+        // where you put it, instead of sliding out from under the pointer or
+        // creeping up the screen when it collapses.
+        let origin = CGPoint(x: current.minX, y: current.maxY - size.height)
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
         keepOnScreen()
         panel.invalidateShadow()
