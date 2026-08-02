@@ -167,6 +167,102 @@ final class RadialLayoutTests: XCTestCase {
         XCTAssertTrue(RadialArc.fullCircle.isFullCircle)
     }
 
+    // MARK: - plan: direction and size chosen together
+
+    /// Every petal the plan produces, as a rect on screen.
+    private func petalRects(_ plan: RadialLayout.Plan, count: Int, around frame: CGRect) -> [CGRect] {
+        let centre = CGPoint(x: frame.midX, y: frame.midY)
+        return RadialLayout.offsets(count: count, radius: plan.radius, arc: plan.arc).map { offset in
+            CGRect(
+                x: centre.x + offset.x - RadialLayout.petalDiameter / 2,
+                y: centre.y + offset.y - RadialLayout.petalDiameter / 2,
+                width: RadialLayout.petalDiameter,
+                height: RadialLayout.petalDiameter
+            )
+        }
+    }
+
+    func testPlanInTheMiddleOfAScreenIsAFullRing() {
+        let plan = RadialLayout.plan(count: 6, around: pill, in: screen)
+        XCTAssertTrue(plan.arc.isFullCircle)
+        XCTAssertEqual(plan.radius, RadialLayout.radius(count: 6, arc: .fullCircle))
+    }
+
+    func testPlanKeepsEveryPetalOnScreenNearAnEdge() {
+        let nearTop = CGRect(x: 1260, y: screen.maxY - 40, width: 41, height: 34)
+        let plan = RadialLayout.plan(count: 6, around: nearTop, in: screen)
+        for rect in petalRects(plan, count: 6, around: nearTop) {
+            XCTAssertTrue(screen.contains(rect), "petal \(rect) escaped the screen")
+        }
+    }
+
+    /// The regression: the direction used to be chosen against the full-circle
+    /// radius, then the ring was drawn at the much larger half-ring radius, so
+    /// petals landed off the screen in the direction that was meant to have room.
+    func testPlanSizesTheRingItActuallyDraws() {
+        let nearTop = CGRect(x: 1260, y: screen.maxY - 40, width: 41, height: 34)
+        let count = 8
+
+        let oldFullRadius = RadialLayout.radius(count: count, arc: .fullCircle)
+        let oldArc = RadialLayout.arc(
+            around: nearTop, in: screen, reach: oldFullRadius + RadialLayout.petalDiameter / 2
+        )
+        let oldPlan = RadialLayout.Plan(
+            arc: oldArc,
+            radius: RadialLayout.radius(count: count, arc: oldArc)
+        )
+        let newPlan = RadialLayout.plan(count: count, around: nearTop, in: screen)
+
+        let oldOnScreen = petalRects(oldPlan, count: count, around: nearTop).filter(screen.contains).count
+        let newOnScreen = petalRects(newPlan, count: count, around: nearTop).filter(screen.contains).count
+        XCTAssertGreaterThanOrEqual(newOnScreen, oldOnScreen)
+    }
+
+    func testPlanIsAtLeastAsGoodAsAnySingleCandidateEverywhere() {
+        let candidates: [RadialArc] = [
+            .fullCircle,
+            RadialArc(start: -.pi / 2, sweep: .pi),
+            RadialArc(start: .pi / 2, sweep: .pi),
+            RadialArc(start: 0, sweep: .pi),
+            RadialArc(start: .pi, sweep: .pi),
+        ]
+
+        for count in [1, 3, 6, 8] {
+            for x in stride(from: CGFloat(4), through: screen.maxX - 45, by: 505) {
+                for y in stride(from: CGFloat(4), through: screen.maxY - 38, by: 340) {
+                    let frame = CGRect(x: x, y: y, width: 41, height: 34)
+                    let chosen = RadialLayout.plan(count: count, around: frame, in: screen)
+                    let chosenOnScreen = petalRects(chosen, count: count, around: frame)
+                        .filter(screen.contains).count
+
+                    for candidate in candidates {
+                        let rival = RadialLayout.Plan(
+                            arc: candidate,
+                            radius: RadialLayout.radius(count: count, arc: candidate)
+                        )
+                        let rivalOnScreen = petalRects(rival, count: count, around: frame)
+                            .filter(screen.contains).count
+                        XCTAssertGreaterThanOrEqual(
+                            chosenOnScreen, rivalOnScreen,
+                            "at \(frame.origin) with \(count) petals a different arc did better"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    func testPlanWithNoPetals() {
+        let plan = RadialLayout.plan(count: 0, around: pill, in: screen)
+        XCTAssertEqual(plan.radius, RadialLayout.minimumRadius)
+    }
+
+    func testPlanOnATinyScreenStillReturnsSomething() {
+        let tiny = CGRect(x: 0, y: 0, width: 200, height: 150)
+        let plan = RadialLayout.plan(count: 8, around: CGRect(x: 80, y: 60, width: 41, height: 34), in: tiny)
+        XCTAssertGreaterThan(plan.radius, 0)
+    }
+
     // MARK: - Panel size
 
     func testPanelIsSquareAndHoldsTheWholeRing() {

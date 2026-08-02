@@ -40,6 +40,11 @@ struct IslandView: View {
             .contentShape(Rectangle())
             .islandDraggable(dragger, onTap: toggleCollapsed)
             .onHover(perform: onHandleHover)
+            // Clicking the pill expands the island, which destroys this very
+            // view — and SwiftUI sends no onHover(false) for a view that is
+            // gone. Without this the "pointer is on the pill" flag stays true
+            // for ever and quick access latches.
+            .onDisappear { onHandleHover(false) }
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel("Show Island items")
             .help("Hover to list your items · click to expand · drag to move")
@@ -131,6 +136,9 @@ struct IslandView: View {
             action: onShowList
         )
         .onHover(perform: onHandleHover)
+        // Same reason as the collapsed pill: this button disappears as soon as
+        // the library drops back under the chip limit.
+        .onDisappear { onHandleHover(false) }
     }
 
     // MARK: - Data

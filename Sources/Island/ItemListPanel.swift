@@ -25,10 +25,28 @@ final class ItemListPanelController {
     private let hostingView: NSHostingView<ItemListView>
     private let anchorFrame: () -> CGRect
 
+    /// How often the open panel re-checks where the pointer really is.
+    private static let watchInterval = Duration.milliseconds(150)
+
     private var isOverHandle = false
     private var isOverList = false
     private var openTask: Task<Void, Never>?
     private var closeTask: Task<Void, Never>?
+    private var watchTask: Task<Void, Never>?
+
+    /// The truth about whether the list should stay up.
+    ///
+    /// The hover flags are only ever a trigger. macOS skips mouseEntered and
+    /// mouseExited when the thing under a still pointer changes — an app going
+    /// full screen, a display being plugged in, a window ordering out — and a
+    /// swallowed event used to latch the list open or shut for good.
+    private var pointerIsInRange: Bool {
+        HoverRegion.keepsOpen(
+            point: NSEvent.mouseLocation,
+            anchor: anchorFrame(),
+            panel: panel.isVisible ? panel.frame : nil
+        )
+    }
     private var cancellables: Set<AnyCancellable> = []
 
     init(state: AppState, anchorFrame: @escaping () -> CGRect, onEdit: @escaping () -> Void) {
@@ -101,6 +119,8 @@ final class ItemListPanelController {
     func hideNow() {
         openTask?.cancel()
         closeTask?.cancel()
+        watchTask?.cancel()
+        watchTask = nil
         isOverHandle = false
         isOverList = false
         panel.orderOut(nil)
@@ -108,11 +128,13 @@ final class ItemListPanelController {
 
     private func scheduleOpen() {
         cancelClose()
-        guard !panel.isVisible else { return }
         openTask?.cancel()
         openTask = Task { [weak self] in
             try? await Task.sleep(for: Self.openDelay)
             guard !Task.isCancelled, let self, self.isOverHandle else { return }
+            // Always present, even when the panel is already ordered in. Using
+            // isVisible as a gate here is what made a stale window swallow
+            // every later hover; presenting again just re-places it.
             self.present()
         }
     }
@@ -123,14 +145,30 @@ final class ItemListPanelController {
         closeTask = Task { [weak self] in
             try? await Task.sleep(for: Self.closeDelay)
             guard !Task.isCancelled, let self else { return }
-            guard !self.isOverHandle, !self.isOverList else { return }
-            self.panel.orderOut(nil)
+            guard !self.pointerIsInRange else { return }
+            self.hideNow()
         }
     }
 
     private func cancelClose() {
         closeTask?.cancel()
         closeTask = nil
+    }
+
+    /// While the list is up, keep checking that the pointer is still on it.
+    /// This is the backstop that makes a missed mouseExited harmless.
+    private func startWatching() {
+        guard watchTask == nil else { return }
+        watchTask = Task { [weak self] in
+            while true {
+                try? await Task.sleep(for: Self.watchInterval)
+                guard !Task.isCancelled, let self else { return }
+                guard self.panel.isVisible else { self.watchTask = nil; return }
+                guard !self.pointerIsInRange else { continue }
+                self.hideNow()
+                return
+            }
+        }
     }
 
     // MARK: - Placement
@@ -140,6 +178,7 @@ final class ItemListPanelController {
         position()
         panel.orderFrontRegardless()
         panel.invalidateShadow()
+        startWatching()
     }
 
     /// Sits under the island, left edges aligned. Flips above when there isn't

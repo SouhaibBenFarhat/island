@@ -82,7 +82,9 @@ final class AppState: ObservableObject {
         if settings.expandPlaceholders {
             let context = PlaceholderContext(
                 date: Date(),
-                clipboard: NSPasteboard.general.string(forType: .string) ?? "",
+                // Not the raw pasteboard: an insert still in flight has
+                // Island's own text sitting on it.
+                clipboard: TextInserter.userClipboardString,
                 uuid: UUID()
             )
             text = PlaceholderExpander.expand(snippet.content, context: context)

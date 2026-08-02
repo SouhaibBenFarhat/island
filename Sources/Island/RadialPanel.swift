@@ -17,10 +17,28 @@ final class RadialPanelController {
     private let anchorFrame: () -> CGRect
     private let onOverflow: () -> Void
 
+    /// How often the open panel re-checks where the pointer really is.
+    private static let watchInterval = Duration.milliseconds(150)
+
     private var isOverPill = false
     private var isOverFlower = false
     private var openTask: Task<Void, Never>?
     private var closeTask: Task<Void, Never>?
+    private var watchTask: Task<Void, Never>?
+
+    /// The truth about whether the flower should stay up.
+    ///
+    /// The hover flags are only ever a trigger. macOS skips mouseEntered and
+    /// mouseExited when the thing under a still pointer changes — an app going
+    /// full screen, a display being plugged in, a window ordering out — and a
+    /// swallowed event used to latch the flower open or shut for good.
+    private var pointerIsInRange: Bool {
+        HoverRegion.keepsOpen(
+            point: NSEvent.mouseLocation,
+            anchor: anchorFrame(),
+            panel: panel.isVisible ? panel.frame : nil
+        )
+    }
 
     init(
         state: AppState,
@@ -69,6 +87,8 @@ final class RadialPanelController {
     func hideNow() {
         openTask?.cancel()
         closeTask?.cancel()
+        watchTask?.cancel()
+        watchTask = nil
         isOverPill = false
         isOverFlower = false
         panel.orderOut(nil)
@@ -76,11 +96,13 @@ final class RadialPanelController {
 
     private func scheduleOpen() {
         cancelClose()
-        guard !panel.isVisible else { return }
         openTask?.cancel()
         openTask = Task { [weak self] in
             try? await Task.sleep(for: Self.openDelay)
             guard !Task.isCancelled, let self, self.isOverPill else { return }
+            // Always present, even when the panel is already ordered in. Using
+            // isVisible as a gate here is what made a stale window swallow
+            // every later hover; presenting again just re-places it.
             self.present()
         }
     }
@@ -91,14 +113,30 @@ final class RadialPanelController {
         closeTask = Task { [weak self] in
             try? await Task.sleep(for: Self.closeDelay)
             guard !Task.isCancelled, let self else { return }
-            guard !self.isOverPill, !self.isOverFlower else { return }
-            self.panel.orderOut(nil)
+            guard !self.pointerIsInRange else { return }
+            self.hideNow()
         }
     }
 
     private func cancelClose() {
         closeTask?.cancel()
         closeTask = nil
+    }
+
+    /// While the flower is up, keep checking that the pointer is still on it.
+    /// This is the backstop that makes a missed mouseExited harmless.
+    private func startWatching() {
+        guard watchTask == nil else { return }
+        watchTask = Task { [weak self] in
+            while true {
+                try? await Task.sleep(for: Self.watchInterval)
+                guard !Task.isCancelled, let self else { return }
+                guard self.panel.isVisible else { self.watchTask = nil; return }
+                guard !self.pointerIsInRange else { continue }
+                self.hideNow()
+                return
+            }
+        }
     }
 
     // MARK: - Building the ring
@@ -117,17 +155,9 @@ final class RadialPanelController {
         var petals = snippets.prefix(split.shown).map(Petal.item)
         if split.overflow > 0 { petals.append(.more(split.overflow)) }
 
-        // The arc has to be chosen before the radius, and the radius decides
-        // how far the ring reaches — so ask for room using a first guess.
-        let provisional = RadialLayout.radius(count: petals.count, arc: .fullCircle)
-        let arc = RadialLayout.arc(
-            around: anchor,
-            in: bounds,
-            reach: provisional + RadialLayout.petalDiameter / 2
-        )
-        let radius = RadialLayout.radius(count: petals.count, arc: arc)
-        let offsets = RadialLayout.offsets(count: petals.count, radius: radius, arc: arc)
-        let size = RadialLayout.panelSize(radius: radius)
+        let plan = RadialLayout.plan(count: petals.count, around: anchor, in: bounds)
+        let offsets = RadialLayout.offsets(count: petals.count, radius: plan.radius, arc: plan.arc)
+        let size = RadialLayout.panelSize(radius: plan.radius)
 
         hostingView.rootView = RadialView(
             state: state,
@@ -154,6 +184,7 @@ final class RadialPanelController {
             display: true
         )
         panel.orderFrontRegardless()
+        startWatching()
     }
 }
 
