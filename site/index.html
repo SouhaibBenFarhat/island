@@ -10,13 +10,13 @@
   <meta name="author" content="Souhaib Ben Farhat" />
 
   <meta property="og:title" content="Island — your snippets, one click from any text field" />
-  <meta property="og:description" content="A native macOS floating widget. Click an item and its text lands in whatever input you're typing in." />
+  <meta property="og:description" content="A native macOS floating widget. Hover it for your saved items — as a list or a flower of coloured circles — and click one to drop its text into whatever input you're typing in." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://souhaibbenfarhat.github.io/island/" />
   <meta property="og:image" content="https://souhaibbenfarhat.github.io/island/og.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Island — a floating macOS bar of snippet chips, with an arrow showing the text landing in the email field below it." />
+  <meta property="og:image:alt" content="Island — a ring of coloured circles around a small floating pill on macOS, with an arrow showing the chosen item's text landing in the email field below." />
   <meta property="og:site_name" content="Island" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://souhaibbenfarhat.github.io/island/og.png" />
@@ -127,16 +127,18 @@
       padding: 0.5rem 0.6rem; border-radius: 1.1rem;
       background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-lg);
     }
-    .island .mark { display: flex; flex-direction: column; gap: 2.4px; padding: 0 0.25rem; }
-    .island .mark i { display: block; background: var(--text); opacity: 0.82; border-radius: 999px; }
-    .island .mark i:nth-child(1) { width: 20px; height: 8.5px; }
-    .island .mark i:nth-child(2) { width: 20px; height: 2.2px; }
-    .island .mark i:nth-child(3) { width: 12.5px; height: 2.2px; }
+    .mark { display: flex; flex-direction: column; gap: 2.4px; padding: 0 0.25rem; }
+    .mark i { display: block; background: var(--text); opacity: 0.82; border-radius: 999px; }
+    .mark i:nth-child(1) { width: 20px; height: 8.5px; }
+    .mark i:nth-child(2) { width: 20px; height: 2.2px; }
+    .mark i:nth-child(3) { width: 12.5px; height: 2.2px; }
     .island .rule { width: 1px; height: 20px; background: var(--line); }
     .island .chip {
+      display: inline-flex; align-items: center; gap: 0.35rem;
       padding: 0.34rem 0.6rem; border-radius: 0.45rem; font-size: 0.8rem; font-weight: 500;
       background: var(--code-bg); white-space: nowrap;
     }
+    .island .chip i { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
     .island .chip.on { background: color-mix(in srgb, var(--is) 16%, transparent); color: var(--is); }
     .island .plus {
       display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin-left: auto;
@@ -168,6 +170,50 @@
     .field .lines i:nth-child(1) { width: 62%; }
     .field .lines i:nth-child(2) { width: 41%; }
     .mock-caption { margin-top: 1.25rem; text-align: center; font-size: 0.78rem; color: var(--muted); }
+
+    /* Quick access: the flower and the list, side by side */
+    .quick { display: grid; gap: 2.5rem; margin-top: 2.75rem; align-items: start; }
+    @media (min-width: 760px) { .quick { grid-template-columns: 1fr 1fr; } }
+    .quick figure { margin: 0; }
+    .quick figcaption {
+      margin-top: 1.25rem; text-align: center;
+      font-size: 0.8rem; line-height: 1.6; color: var(--muted);
+    }
+    .quick figcaption b { color: var(--text); font-weight: 600; }
+
+    .flower { position: relative; width: 208px; height: 208px; margin: 0 auto; }
+    .flower .pill {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      display: grid; place-items: center; width: 44px; height: 34px;
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: 999px; box-shadow: var(--shadow-md);
+    }
+    .flower .petal {
+      position: absolute; display: grid; place-items: center;
+      width: 42px; height: 42px; border-radius: 50%;
+      color: #fff; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.01em;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    }
+
+    .drop {
+      width: 268px; margin: 0 auto; padding: 0.4rem;
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: 0.9rem; box-shadow: var(--shadow-lg);
+    }
+    .drop .row2 {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.4rem 0.55rem; border-radius: 0.5rem;
+    }
+    .drop .row2.on { background: var(--code-bg); }
+    .drop .dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; }
+    .drop .row2 p { margin: 0; }
+    .drop .t { font-size: 0.78rem; font-weight: 500; }
+    .drop .s { font-size: 0.68rem; color: var(--muted); }
+    .drop .foot {
+      display: flex; align-items: center; gap: 0.35rem;
+      margin: 0.25rem 0.15rem 0.1rem; padding: 0.45rem 0.4rem 0.2rem;
+      border-top: 1px solid var(--line); font-size: 0.7rem; color: var(--muted);
+    }
 
     /* Sections */
     section.band { border-top: 1px solid var(--line); }
@@ -249,8 +295,8 @@
         <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
         <span class="rule"></span>
         <span class="chip on">Email</span>
-        <span class="chip">Signature</span>
-        <span class="chip">Today</span>
+        <span class="chip"><i style="background:#2F7069"></i>Signature</span>
+        <span class="chip"><i style="background:#B8862B"></i>Today</span>
         <span class="rule"></span>
         <span class="plus" aria-hidden="true">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -271,6 +317,60 @@
       </div>
 
       <p class="mock-caption">One click on <em>Email</em> — the address appears in the app you were already in.</p>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <p class="label">Quick access</p>
+        <h2 class="display section">Collapse it, then hover.</h2>
+        <p class="lede muted">
+          Shrink the island to a pill and it stays out of the way until you point at it.
+          What appears is up to you — the whole list with a preview of each item, or a
+          flower of coloured circles ringed around the pill. Click one; the text lands
+          in the field you were already in.
+        </p>
+
+        <div class="quick">
+          <figure>
+            <div class="flower" aria-hidden="true">
+              <span class="petal" style="left:83px;  top:13px;  background:#B4552E">E</span>
+              <span class="petal" style="left:144px; top:48px;  background:#2F7069">S</span>
+              <span class="petal" style="left:144px; top:118px; background:#B8862B">T</span>
+              <span class="petal" style="left:83px;  top:153px; background:#4C4A8C">TI</span>
+              <span class="petal" style="left:22px;  top:118px; background:#6E7F3F">A</span>
+              <span class="petal" style="left:22px;  top:48px;  background:#7A3F63">WE</span>
+              <span class="pill">
+                <span class="mark"><i></i><i></i><i></i></span>
+              </span>
+            </div>
+            <figcaption><b>Flower</b> — up to eight items as coloured circles. Past that, the last one opens the full list.</figcaption>
+          </figure>
+
+          <figure>
+            <div class="drop" aria-hidden="true">
+              <div class="row2 on">
+                <span class="dot" style="background:#B4552E"></span>
+                <div><p class="t">Email</p><p class="s">you@example.com</p></div>
+              </div>
+              <div class="row2">
+                <span class="dot" style="background:#2F7069"></span>
+                <div><p class="t">Signature</p><p class="s">Best, Souhaib</p></div>
+              </div>
+              <div class="row2">
+                <span class="dot" style="background:#B8862B"></span>
+                <div><p class="t">Today</p><p class="s">2026-08-02</p></div>
+              </div>
+              <div class="foot">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M4 6h16M4 12h16M4 18h16M9 6v0M15 12v0M7 18v0" />
+                </svg>
+                Edit items…
+              </div>
+            </div>
+            <figcaption><b>List</b> — every item, with a preview of the text it inserts.</figcaption>
+          </figure>
+        </div>
+      </div>
     </section>
 
     <section class="band">
