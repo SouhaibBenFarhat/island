@@ -261,12 +261,12 @@ final class PanelDragger {
     /// click on a chip still inserts its text.
     static let dragThreshold: CGFloat = 3
 
-    /// How long after a drag ends we keep treating events as belonging to it.
-    /// `performDrag` swallows the mouse-up, so the tail of a drag arrives as
-    /// stray callbacks that must not be mistaken for a click.
+    /// How long after the button comes up we keep treating callbacks as the
+    /// tail of the drag rather than a new click.
     private static let settleWindow: TimeInterval = 0.3
 
     weak var panel: NSPanel?
+    /// Called once the drag is over, to save where the island ended up.
     var onFinish: (() -> Void)?
     /// Called the moment a drag really starts, before the window moves.
     var onDragStart: (() -> Void)?
@@ -275,22 +275,22 @@ final class PanelDragger {
         case idle
         /// Mouse is down but hasn't travelled far enough to be a drag yet.
         case pressed(start: CGPoint)
-        /// A drag is running, or has just ended and is still settling.
+        /// A drag is running, or has just finished and is still settling.
         case dragged
     }
 
     private var phase: Phase = .idle
-    private var lastDragEnded: TimeInterval = -.infinity
+    private var lastDragActivity: TimeInterval = -.infinity
 
-    private var isSettling: Bool {
-        ProcessInfo.processInfo.systemUptime - lastDragEnded < Self.settleWindow
-    }
+    private var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
+    private var isSettling: Bool { now - lastDragActivity < Self.settleWindow }
+    private var isButtonDown: Bool { NSEvent.pressedMouseButtons & 1 != 0 }
 
     func update() {
         switch phase {
         case .idle:
-            // Ignore the tail of a drag that just ended; starting a new press
-            // here is what used to turn a drag into a click as well.
+            // Ignore the tail of a drag that just ended; starting a fresh press
+            // here is what turned the end of a drag into a click.
             guard !isSettling else { return }
             phase = .pressed(start: NSEvent.mouseLocation)
 
@@ -300,10 +300,17 @@ final class PanelDragger {
             beginDrag()
 
         case .dragged:
-            // Stay put while the drag settles. Past that, an event can only be
-            // a genuinely new gesture — the recovery path for when SwiftUI
-            // cancels the gesture and never sends .onEnded.
+            // `performDrag` hands the drag to the window server and can return
+            // straight away, so "still dragging" is the button still being
+            // down — not whether that call has come back.
+            if isButtonDown {
+                lastDragActivity = now
+                return
+            }
+            // Button is up. Hold on a little longer so the callbacks that close
+            // out this drag can't be read as a press.
             guard !isSettling else { return }
+            endDrag()
             phase = .pressed(start: NSEvent.mouseLocation)
         }
     }
@@ -313,15 +320,14 @@ final class PanelDragger {
     ///
     /// More than one gesture can be live over the same spot (a chip and the bar
     /// behind it), so this has to answer "that was a drag" to *every* caller,
-    /// not just the first one — hence the settle window rather than a flag that
-    /// the first finisher consumes.
+    /// not just the first — hence the settle window rather than a flag the
+    /// first finisher consumes.
     @discardableResult
     func finish() -> Bool {
-        let wasDrag: Bool
+        var wasDrag = isSettling
         if case .dragged = phase {
             wasDrag = true
-        } else {
-            wasDrag = isSettling
+            endDrag()
         }
         phase = .idle
         return wasDrag
@@ -332,9 +338,15 @@ final class PanelDragger {
             return // No usable event yet — try again on the next update.
         }
         phase = .dragged
+        lastDragActivity = now
         onDragStart?()
-        panel.performDrag(with: event) // Blocks until you let go.
-        lastDragEnded = ProcessInfo.processInfo.systemUptime
+        panel.performDrag(with: event)
+    }
+
+    /// Records the resting place. Called when the drag is genuinely over, not
+    /// when `performDrag` returns — those are not the same moment.
+    private func endDrag() {
+        lastDragActivity = now
         onFinish?()
     }
 }
