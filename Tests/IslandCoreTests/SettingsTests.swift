@@ -6,6 +6,7 @@ final class SettingsTests: XCTestCase {
         let settings = Settings()
         XCTAssertEqual(settings.insertMethod, .paste)
         XCTAssertTrue(settings.expandPlaceholders)
+        XCTAssertTrue(settings.spaceBeforeInsert)
         XCTAssertTrue(settings.isIslandVisible)
         XCTAssertFalse(settings.isCollapsed)
         XCTAssertNil(settings.panelOrigin)
@@ -34,6 +35,13 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(decoded.insertMethod, .type)
         XCTAssertTrue(decoded.expandPlaceholders)
         XCTAssertTrue(decoded.isIslandVisible)
+        XCTAssertTrue(decoded.spaceBeforeInsert, "a file written before this setting existed keeps the default")
+    }
+
+    func testSpaceBeforeInsertSurvivesEncoding() throws {
+        let settings = Settings(spaceBeforeInsert: false)
+        let decoded = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(settings))
+        XCTAssertFalse(decoded.spaceBeforeInsert)
     }
 
     func testUnknownInsertMethodIsARealDecodingError() {

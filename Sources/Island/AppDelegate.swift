@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let visibilityItem = NSMenuItem()
     private let launchAtLoginItem = NSMenuItem()
     private let placeholdersItem = NSMenuItem()
+    private let spacingItem = NSMenuItem()
     private let accessibilityItem = NSMenuItem()
     private var insertMethodItems: [InsertMethod: NSMenuItem] = [:]
 
@@ -83,6 +84,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         placeholdersItem.target = self
         menu.addItem(placeholdersItem)
 
+        spacingItem.title = "Add a Space When Needed"
+        spacingItem.action = #selector(toggleSpacing)
+        spacingItem.target = self
+        spacingItem.toolTip = "Put a space in front of inserted text when a word already sits before the cursor"
+        menu.addItem(spacingItem)
+
         launchAtLoginItem.title = "Launch at Login"
         launchAtLoginItem.action = #selector(toggleLaunchAtLogin)
         launchAtLoginItem.target = self
@@ -108,6 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         visibilityItem.title = state.settings.isIslandVisible ? "Hide Island" : "Show Island"
         placeholdersItem.state = state.settings.expandPlaceholders ? .on : .off
+        spacingItem.state = state.settings.spaceBeforeInsert ? .on : .off
         launchAtLoginItem.state = LaunchAtLogin.isEnabled ? .on : .off
         launchAtLoginItem.isHidden = !LaunchAtLogin.isAvailable
         accessibilityItem.isHidden = state.hasAccessibilityAccess
@@ -132,6 +140,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func togglePlaceholders() {
         state.settings.expandPlaceholders.toggle()
+    }
+
+    @objc private func toggleSpacing() {
+        state.settings.spaceBeforeInsert.toggle()
     }
 
     @objc private func toggleLaunchAtLogin() {

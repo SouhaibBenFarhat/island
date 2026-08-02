@@ -16,7 +16,7 @@ enum TextInserter {
     /// receiving app's input queue.
     private static let typingDelay = Duration.milliseconds(4)
 
-    static func insert(_ text: String, using method: InsertMethod) {
+    static func insert(_ text: String, using method: InsertMethod, spaceIfNeeded: Bool) {
         guard !text.isEmpty else { return }
 
         // Clicking a chip doesn't activate Island, but opening the editor
@@ -26,9 +26,17 @@ enum TextInserter {
 
         Task { @MainActor in
             if reactivated { try? await Task.sleep(for: activationDelay) }
+
+            // Read the cursor's surroundings only now: before this point the
+            // target app may not be frontmost, and the focused element would be
+            // the wrong one.
+            let payload = spaceIfNeeded
+                ? InsertionSpacing.prepare(text, precedingCharacter: FocusedField.characterBeforeCursor())
+                : text
+
             switch method {
-            case .paste: await pasteViaClipboard(text)
-            case .type: await typeCharacters(text)
+            case .paste: await pasteViaClipboard(payload)
+            case .type: await typeCharacters(payload)
             }
         }
     }

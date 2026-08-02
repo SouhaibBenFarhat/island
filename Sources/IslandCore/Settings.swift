@@ -23,6 +23,9 @@ public enum InsertMethod: String, Codable, CaseIterable, Sendable {
 public struct Settings: Codable, Equatable, Sendable {
     public var insertMethod: InsertMethod
     public var expandPlaceholders: Bool
+    /// Put a space in front of inserted text when the cursor already has a
+    /// word right before it.
+    public var spaceBeforeInsert: Bool
     public var isIslandVisible: Bool
     public var isCollapsed: Bool
     /// Bottom-left corner of the panel in screen points, nil until first move.
@@ -32,6 +35,7 @@ public struct Settings: Codable, Equatable, Sendable {
     public init(
         insertMethod: InsertMethod = .paste,
         expandPlaceholders: Bool = true,
+        spaceBeforeInsert: Bool = true,
         isIslandVisible: Bool = true,
         isCollapsed: Bool = false,
         panelOriginX: Double? = nil,
@@ -39,6 +43,7 @@ public struct Settings: Codable, Equatable, Sendable {
     ) {
         self.insertMethod = insertMethod
         self.expandPlaceholders = expandPlaceholders
+        self.spaceBeforeInsert = spaceBeforeInsert
         self.isIslandVisible = isIslandVisible
         self.isCollapsed = isCollapsed
         self.panelOriginX = panelOriginX
@@ -52,6 +57,8 @@ public struct Settings: Codable, Equatable, Sendable {
             ?? defaults.insertMethod
         self.expandPlaceholders = try container.decodeIfPresent(Bool.self, forKey: .expandPlaceholders)
             ?? defaults.expandPlaceholders
+        self.spaceBeforeInsert = try container.decodeIfPresent(Bool.self, forKey: .spaceBeforeInsert)
+            ?? defaults.spaceBeforeInsert
         self.isIslandVisible = try container.decodeIfPresent(Bool.self, forKey: .isIslandVisible)
             ?? defaults.isIslandVisible
         self.isCollapsed = try container.decodeIfPresent(Bool.self, forKey: .isCollapsed)

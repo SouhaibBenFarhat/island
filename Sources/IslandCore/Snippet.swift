@@ -33,7 +33,17 @@ public struct Snippet: Identifiable, Codable, Equatable, Sendable {
         content.isEmpty
     }
 
+    /// One-line version of the content for the hover list. Line breaks and runs
+    /// of whitespace collapse to single spaces so every row is the same height.
+    public var contentPreview: String {
+        let collapsed = content
+            .split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+        return Snippet.truncated(collapsed, to: Snippet.previewLimit)
+    }
+
     static let labelLimit = 28
+    static let previewLimit = 42
 
     /// Shortens with an ellipsis so long labels can't stretch the island off
     /// the screen. Counts characters (grapheme clusters), so emoji stay whole.

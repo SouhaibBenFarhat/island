@@ -40,6 +40,31 @@ final class SnippetTests: XCTestCase {
         XCTAssertEqual(Snippet.truncated("hello", to: -3), "")
     }
 
+    func testContentPreviewCollapsesLineBreaks() {
+        let snippet = Snippet(label: "Signature", content: "Best,\nSouhaib")
+        XCTAssertEqual(snippet.contentPreview, "Best, Souhaib")
+    }
+
+    func testContentPreviewCollapsesRunsOfWhitespace() {
+        let snippet = Snippet(label: "", content: "a  \t\n  b")
+        XCTAssertEqual(snippet.contentPreview, "a b")
+    }
+
+    func testContentPreviewOfEmptyContentIsEmpty() {
+        XCTAssertEqual(Snippet(label: "x", content: "").contentPreview, "")
+        XCTAssertEqual(Snippet(label: "x", content: "   \n ").contentPreview, "")
+    }
+
+    func testContentPreviewIsTruncated() {
+        let snippet = Snippet(label: "", content: String(repeating: "a", count: 100))
+        XCTAssertEqual(snippet.contentPreview.count, Snippet.previewLimit)
+        XCTAssertTrue(snippet.contentPreview.hasSuffix("…"))
+    }
+
+    func testContentPreviewKeepsShortContentWhole() {
+        XCTAssertEqual(Snippet(label: "", content: "you@example.com").contentPreview, "you@example.com")
+    }
+
     func testIsEmptyOnlyLooksAtContent() {
         XCTAssertTrue(Snippet(label: "Named", content: "").isEmpty)
         XCTAssertFalse(Snippet(label: "", content: "x").isEmpty)

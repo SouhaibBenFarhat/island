@@ -21,6 +21,7 @@ final class IslandPanelController {
     private let panel: IslandPanel
     private let hostingView: NSHostingView<IslandView>
     private let dragger = PanelDragger()
+    private var itemList: ItemListPanelController!
     private var cancellables: Set<AnyCancellable> = []
 
     var isVisible: Bool { panel.isVisible }
@@ -53,6 +54,24 @@ final class IslandPanelController {
 
         dragger.panel = panel
         dragger.onFinish = { [weak self] in self?.rememberPosition() }
+        // The drop-down can't keep up with a window the window server is
+        // moving, so get it out of the way rather than have it trail behind.
+        dragger.onDragStart = { [weak self] in self?.itemList.hideNow() }
+
+        let islandPanel = panel
+        itemList = ItemListPanelController(
+            state: state,
+            anchorFrame: { islandPanel.frame },
+            onEdit: onEdit
+        )
+        hostingView.rootView = IslandView(
+            state: state,
+            dragger: dragger,
+            onEdit: onEdit,
+            onHide: onHide,
+            onHandleHover: { [weak self] hovering in self?.itemList.handleHover(hovering) },
+            onShowList: { [weak self] in self?.itemList.showImmediately() }
+        )
 
         // The bar changes width when items are added, renamed or removed.
         state.objectWillChange
@@ -78,6 +97,7 @@ final class IslandPanelController {
     }
 
     func hide() {
+        itemList.hideNow()
         panel.orderOut(nil)
     }
 
