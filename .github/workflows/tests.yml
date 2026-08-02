@@ -1,0 +1,34 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    # Job names are referenced by branch protection as required checks —
+    # keep "test" and "build" stable if you rename things.
+    name: test
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run tests
+        run: swift test
+
+  build:
+    name: build
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Catches packaging breakage (Info.plist, icon, codesign) on the PR
+      # instead of on release day.
+      - name: Build the app bundle
+        run: scripts/build-app.sh
+
+      - name: Verify the ad-hoc signature
+        run: codesign --verify --strict --verbose=2 dist/Island.app

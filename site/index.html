@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="icon.png" type="image/png" />
+  <title>Island — your snippets, one click from any text field</title>
+  <meta name="description" content="Island is a native macOS floating widget. Click an item and its text lands in whatever input you're typing in. Free, open source, installable with Homebrew." />
+  <link rel="canonical" href="https://souhaibbenfarhat.github.io/island/" />
+  <meta name="author" content="Souhaib Ben Farhat" />
+
+  <meta property="og:title" content="Island — your snippets, one click from any text field" />
+  <meta property="og:description" content="A native macOS floating widget. Click an item and its text lands in whatever input you're typing in." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://souhaibbenfarhat.github.io/island/" />
+  <meta property="og:image" content="https://souhaibbenfarhat.github.io/island/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Island — a floating macOS bar of snippet chips, with an arrow showing the text landing in the email field below it." />
+  <meta property="og:site_name" content="Island" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://souhaibbenfarhat.github.io/island/og.png" />
+
+  <meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0d0f12" media="(prefers-color-scheme: dark)" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #faf8f4;
+      --surface: #ffffff;
+      --text: #16181d;
+      --muted: #5b616d;
+      --line: #e9e4db;
+      --is: #b4552e;
+      --code-bg: rgba(22, 24, 29, 0.05);
+      --shadow-sm: 0 1px 2px rgba(22,24,29,.04), 0 1px 3px rgba(22,24,29,.06);
+      --shadow-md: 0 2px 4px rgba(22,24,29,.05), 0 6px 16px rgba(22,24,29,.08);
+      --shadow-lg: 0 8px 24px rgba(22,24,29,.10), 0 2px 6px rgba(22,24,29,.06);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d0f12;
+        --surface: #14171c;
+        --text: #e8e9ec;
+        --muted: #99a0ac;
+        --line: #222730;
+        --is: #e08b5e;
+        --code-bg: rgba(232, 233, 236, 0.07);
+        --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+        --shadow-md: 0 4px 14px rgba(0,0,0,.5);
+        --shadow-lg: 0 10px 30px rgba(0,0,0,.6);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    body { margin: 0; min-height: 100vh; }
+    a { color: inherit; text-decoration: none; }
+    ::selection { background: var(--is); color: #fff; }
+    :where(a, button):focus-visible { outline: 2px solid var(--is); outline-offset: 2px; border-radius: 6px; }
+
+    .wrap { margin: 0 auto; width: 100%; max-width: 68rem; padding: 0 1.5rem; }
+    .display { font-family: 'Fraunces', ui-serif, Georgia, serif; letter-spacing: -0.02em; font-weight: 500; }
+    .muted { color: var(--muted); }
+    .label {
+      font-size: 0.7rem; font-weight: 500; text-transform: uppercase;
+      letter-spacing: 0.18em; color: var(--muted); margin: 0;
+    }
+    code {
+      background: var(--code-bg); border-radius: 6px; padding: 0.1em 0.4em;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.85em;
+    }
+    .card {
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: 1rem; box-shadow: var(--shadow-sm);
+    }
+    .link-underline {
+      color: var(--is);
+      background-image: linear-gradient(var(--is), var(--is));
+      background-size: 0% 1px; background-position: 0 100%; background-repeat: no-repeat;
+      transition: background-size 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .link-underline:hover { background-size: 100% 1px; }
+
+    /* Top bar */
+    .top { border-bottom: 1px solid var(--line); }
+    .top .wrap { display: flex; align-items: center; justify-content: space-between; height: 3.5rem; }
+    .top a { font-size: 0.875rem; color: var(--muted); transition: color 0.2s; }
+    .top a:hover { color: var(--text); }
+
+    /* Hero */
+    .hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 5rem 0 4rem; }
+    .hero img.icon { width: 7rem; height: 7rem; }
+    .hero h1 { font-size: clamp(2.5rem, 6vw, 3.25rem); margin: 1.75rem 0 0; }
+    .hero .tagline { max-width: 34rem; font-size: 1.125rem; line-height: 1.65; margin: 1rem 0 0; }
+
+    .brew {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+      width: 100%; max-width: 28rem; margin-top: 2rem; padding: 0.8rem 1rem;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 0.75rem;
+      box-shadow: var(--shadow-sm); cursor: pointer; text-align: left;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.82rem; color: var(--text);
+      transition: box-shadow 0.2s;
+    }
+    .brew:hover { box-shadow: var(--shadow-md); }
+    .brew .c { color: var(--muted); }
+    .brew .copy {
+      flex-shrink: 0; font-family: 'Inter', sans-serif; font-size: 0.7rem; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted);
+    }
+    .brew:hover .copy { color: var(--is); }
+
+    /* Mockup: the island above the field it types into */
+    .mock { max-width: 34rem; margin: 0 auto; padding-bottom: 5rem; }
+    .island {
+      display: flex; align-items: center; gap: 0.45rem;
+      padding: 0.5rem 0.6rem; border-radius: 1.1rem;
+      background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-lg);
+    }
+    .island .mark { display: flex; flex-direction: column; gap: 2.4px; padding: 0 0.25rem; }
+    .island .mark i { display: block; background: var(--text); opacity: 0.82; border-radius: 999px; }
+    .island .mark i:nth-child(1) { width: 20px; height: 8.5px; }
+    .island .mark i:nth-child(2) { width: 20px; height: 2.2px; }
+    .island .mark i:nth-child(3) { width: 12.5px; height: 2.2px; }
+    .island .rule { width: 1px; height: 20px; background: var(--line); }
+    .island .chip {
+      padding: 0.34rem 0.6rem; border-radius: 0.45rem; font-size: 0.8rem; font-weight: 500;
+      background: var(--code-bg); white-space: nowrap;
+    }
+    .island .chip.on { background: color-mix(in srgb, var(--is) 16%, transparent); color: var(--is); }
+    .island .plus {
+      display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin-left: auto;
+      border-radius: 0.45rem; background: var(--code-bg); color: var(--muted);
+    }
+
+    .connector { display: flex; flex-direction: column; align-items: center; padding: 0.75rem 0; }
+    .connector .dash { width: 0; height: 2.25rem; border-left: 1.5px dashed var(--line); }
+    .connector .head {
+      width: 0; height: 0; margin-top: 2px;
+      border-left: 5.5px solid transparent; border-right: 5.5px solid transparent;
+      border-top: 8px solid var(--is);
+    }
+
+    .field { padding: 1.25rem 1.4rem 1.5rem; }
+    .field .to {
+      font-size: 0.65rem; font-weight: 600; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--muted); margin: 0;
+    }
+    .field .value { display: flex; align-items: center; gap: 3px; margin: 0.5rem 0 0; font-size: 1.05rem; }
+    .field .caret {
+      display: inline-block; width: 2px; height: 1.15rem; background: var(--is);
+      animation: blink 1.1s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .field .caret { animation: none; } }
+    .field .lines { margin-top: 1.4rem; display: flex; flex-direction: column; gap: 0.55rem; }
+    .field .lines i { display: block; height: 7px; border-radius: 999px; background: var(--code-bg); }
+    .field .lines i:nth-child(1) { width: 62%; }
+    .field .lines i:nth-child(2) { width: 41%; }
+    .mock-caption { margin-top: 1.25rem; text-align: center; font-size: 0.78rem; color: var(--muted); }
+
+    /* Sections */
+    section.band { border-top: 1px solid var(--line); }
+    section.band .wrap { padding: 4.5rem 1.5rem; }
+    h2.section { font-size: clamp(1.75rem, 4vw, 2.25rem); line-height: 1.15; margin: 1rem 0 0; max-width: 36rem; }
+    h2.small { font-size: clamp(1.4rem, 3vw, 1.75rem); margin: 1rem 0 0; }
+    .lede { max-width: 46rem; font-size: 0.95rem; line-height: 1.7; margin: 1.25rem 0 0; }
+
+    .features { display: grid; gap: 1rem; margin-top: 2.5rem; }
+    @media (min-width: 640px) { .features { grid-template-columns: 1fr 1fr; } }
+    .features .card { padding: 1.5rem; }
+    .features h3 { font-family: 'Fraunces', serif; font-size: 1.125rem; font-weight: 500; letter-spacing: -0.01em; margin: 0; }
+    .features p { font-size: 0.92rem; line-height: 1.65; color: var(--muted); margin: 0.5rem 0 0; }
+
+    .duo { display: grid; gap: 3rem; }
+    @media (min-width: 768px) { .duo { grid-template-columns: 1fr 1fr; } }
+    .steps { list-style: none; margin: 1.5rem 0 0; padding: 0; font-size: 0.95rem; line-height: 1.7; }
+    .steps li { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+    .steps .n { font-family: ui-monospace, monospace; color: var(--is); }
+    .note { font-size: 0.88rem; line-height: 1.7; color: var(--muted); margin-top: 1.5rem; }
+
+    .specs { margin: 1.5rem 0 0; padding: 0 1.25rem; }
+    .specs > div {
+      display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem;
+      padding: 0.75rem 0; border-top: 1px solid var(--line);
+    }
+    .specs > div:first-child { border-top: none; }
+    .specs dt { flex-shrink: 0; font-size: 0.82rem; font-weight: 500; color: var(--muted); }
+    .specs dd { margin: 0; font-size: 0.9rem; text-align: right; }
+
+    .tokens { margin: 1.5rem 0 0; padding: 1.25rem 1.4rem; }
+    .tokens > div {
+      display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem;
+      padding: 0.5rem 0;
+    }
+    .tokens code { background: none; padding: 0; color: var(--is); }
+    .tokens span { font-size: 0.88rem; color: var(--muted); }
+
+    .terminal {
+      max-width: 42rem; margin-top: 2rem; padding: 1.5rem; overflow-x: auto;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.85rem; line-height: 1.75;
+    }
+    .terminal p { margin: 0; white-space: nowrap; }
+    .terminal p.gap { margin-top: 1rem; }
+    .terminal .c { color: var(--muted); user-select: none; }
+
+    footer { border-top: 1px solid var(--line); }
+    footer .wrap {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 4rem; font-size: 0.82rem; color: var(--muted);
+    }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a href="https://souhaibbenfarhat.github.io">← Souhaib Ben Farhat</a>
+      <a href="https://github.com/SouhaibBenFarhat/island" rel="noopener">GitHub ↗</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero wrap">
+      <img class="icon" src="icon.png" alt="Island app icon" width="112" height="112" />
+      <h1 class="display">Island</h1>
+      <p class="tagline muted">A floating bar of the things you retype all day.<br />Click one, and it lands where your cursor is.</p>
+
+      <button class="brew" id="copy-brew" type="button" aria-label="Copy install command">
+        <span><span class="c">$ </span>brew install --cask souhaibbenfarhat/tap/island</span>
+        <span class="copy" data-copy-label>copy</span>
+      </button>
+      <p style="margin-top:1rem"><a class="link-underline" style="font-size:0.875rem" href="https://github.com/SouhaibBenFarhat/island" rel="noopener">View source on GitHub</a></p>
+    </section>
+
+    <section class="mock" aria-label="The Island bar and the field it types into">
+      <div class="island">
+        <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="rule"></span>
+        <span class="chip on">Email</span>
+        <span class="chip">Signature</span>
+        <span class="chip">Today</span>
+        <span class="rule"></span>
+        <span class="plus" aria-hidden="true">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </span>
+      </div>
+
+      <div class="connector" aria-hidden="true">
+        <span class="dash"></span>
+        <span class="head"></span>
+      </div>
+
+      <div class="card field">
+        <p class="to">To</p>
+        <p class="value">you@example.com<span class="caret"></span></p>
+        <div class="lines" aria-hidden="true"><i></i><i></i></div>
+      </div>
+
+      <p class="mock-caption">One click on <em>Email</em> — the address appears in the app you were already in.</p>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <p class="label">Why it exists</p>
+        <h2 class="display section">Stop retyping the same twelve things.</h2>
+        <p class="lede muted">
+          Your address, your signature, a ticket prefix, the standup template, that one
+          long command. They live in a note you have to go and find, so you type them
+          from memory instead. Island keeps them on screen and one click away — and the
+          click lands in whatever field you were already writing in.
+        </p>
+
+        <div class="features">
+          <div class="card">
+            <h3>One click, any app</h3>
+            <p>Mail, Slack, a browser form, a terminal. Island never takes focus, so the text goes exactly where your cursor was.</p>
+          </div>
+          <div class="card">
+            <h3>Floats everywhere</h3>
+            <p>Drag it anywhere, on any Space, over full-screen apps. Collapse it to a small pill when you want the pixels back.</p>
+          </div>
+          <div class="card">
+            <h3>Placeholders</h3>
+            <p>Write <code>{{date}}</code> or <code>{{clipboard}}</code> in an item and it's filled in the moment you click — not when you saved it.</p>
+          </div>
+          <div class="card">
+            <h3>Native &amp; tiny</h3>
+            <p>SwiftUI end to end. No Electron, no background service farm — a one-megabyte app that feels like part of macOS.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap duo">
+        <div>
+          <p class="label">How it works</p>
+          <h2 class="display small">Honest plumbing</h2>
+          <ol class="steps">
+            <li><span class="n">1.</span><span>The bar is a non-activating panel. Clicking it doesn't switch apps, so the field you were typing in keeps the keyboard.</span></li>
+            <li><span class="n">2.</span><span>Island puts the item's text on the clipboard, sends <code>⌘V</code>, then puts your old clipboard back. Prefer it untouched? Switch to typing the text out key by key.</span></li>
+            <li><span class="n">3.</span><span>Placeholders are expanded at click time, so <code>{{date}}</code> is today's date, every day.</span></li>
+          </ol>
+          <p class="note">
+            macOS asks for Accessibility permission once — that's what lets any app send
+            keystrokes to another. Your items live in a plain JSON file on your Mac.
+            Nothing is uploaded, and Island has no network code at all.
+          </p>
+        </div>
+
+        <div>
+          <p class="label">Specs</p>
+          <h2 class="display small">At a glance</h2>
+          <dl class="specs card">
+            <div><dt>Version</dt><dd>0.1.0</dd></div>
+            <div><dt>Platform</dt><dd>macOS 14+ · Apple Silicon</dd></div>
+            <div><dt>Requires</dt><dd>Accessibility permission</dd></div>
+            <div><dt>Download size</dt><dd>≈ 1 MB</dd></div>
+            <div><dt>Built with</dt><dd>Swift · SwiftUI · AppKit</dd></div>
+            <div><dt>License</dt><dd>MIT — open source</dd></div>
+            <div><dt>Distribution</dt><dd>Homebrew cask, or build from source</dd></div>
+          </dl>
+
+          <p class="label" style="margin-top:2.5rem">Placeholders</p>
+          <dl class="tokens card">
+            <div><code>{{date}}</code><span>2026-08-02</span></div>
+            <div><code>{{time}}</code><span>14:39</span></div>
+            <div><code>{{datetime}}</code><span>2026-08-02 14:39</span></div>
+            <div><code>{{date:MMM d, yyyy}}</code><span>Aug 2, 2026</span></div>
+            <div><code>{{clipboard}}</code><span>whatever you last copied</span></div>
+            <div><code>{{uuid}}</code><span>a fresh identifier</span></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <p class="label">Install</p>
+        <h2 class="display small">Up and running in one command</h2>
+        <div class="terminal card">
+          <p><span class="c"># install</span></p>
+          <p>brew install --cask souhaibbenfarhat/tap/island</p>
+          <p class="gap"><span class="c"># upgrade</span></p>
+          <p>brew upgrade --cask island</p>
+          <p class="gap"><span class="c"># uninstall</span></p>
+          <p>brew uninstall --cask island</p>
+          <p class="gap"><span class="c"># installed manually from the zip instead? clear Gatekeeper's</span></p>
+          <p class="gap" style="margin-top:0"><span class="c"># quarantine flag once, so the app opens without a "damaged" warning</span></p>
+          <p>xattr -dr com.apple.quarantine /Applications/Island.app</p>
+        </div>
+        <p class="note" style="max-width:46rem">
+          On first launch, macOS asks to allow Island under Privacy &amp; Security →
+          Accessibility. Without it the app can't put text into other apps.
+          Island isn't notarized by Apple (it's ad-hoc signed) — the Homebrew cask clears
+          the quarantine flag for you on install, so the <code>xattr</code> line is only
+          needed if you download the zip from GitHub Releases yourself. Either way, you
+          can always audit
+          <a class="link-underline" href="https://github.com/SouhaibBenFarhat/island" rel="noopener">the source</a>.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <a href="https://souhaibbenfarhat.github.io">Built by Souhaib Ben Farhat</a>
+      <span>MIT · © 2026</span>
+    </div>
+  </footer>
+
+  <script>
+    const btn = document.getElementById('copy-brew');
+    const label = btn.querySelector('[data-copy-label]');
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText('brew install --cask souhaibbenfarhat/tap/island');
+        label.textContent = 'copied ✓';
+        setTimeout(() => (label.textContent = 'copy'), 1600);
+      } catch {}
+    });
+  </script>
+</body>
+</html>
