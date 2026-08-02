@@ -91,6 +91,71 @@ public enum RadialLayout {
         return RadialArc(start: .pi, sweep: .pi)
     }
 
+    /// A direction and a size, settled together.
+    public struct Plan: Equatable, Sendable {
+        public var arc: RadialArc
+        public var radius: CGFloat
+
+        public init(arc: RadialArc, radius: CGFloat) {
+            self.arc = arc
+            self.radius = radius
+        }
+    }
+
+    /// Works out how the ring should open around `frame`.
+    ///
+    /// Direction and size depend on each other: the same petals spread over a
+    /// half ring need twice the radius they need on a full one. Choosing the
+    /// direction from the full-circle radius and *then* drawing the bigger half
+    /// ring is how petals end up off the screen — the room was measured against
+    /// a ring that was never drawn.
+    ///
+    /// So this tries each candidate at the size it would actually be drawn, and
+    /// keeps whichever puts the most petals fully on screen. Ties go to the
+    /// earlier candidate, and the candidates are ordered by preference: a full
+    /// ring first, then the direction with the most room around the island.
+    public static func plan(count: Int, around frame: CGRect, in bounds: CGRect) -> Plan {
+        let full = radius(count: count, arc: .fullCircle)
+        guard count > 0 else { return Plan(arc: .fullCircle, radius: full) }
+
+        let preferred = arc(around: frame, in: bounds, reach: full + petalDiameter / 2)
+        var candidates: [RadialArc] = [.fullCircle, preferred]
+        candidates.append(contentsOf: [
+            RadialArc(start: -.pi / 2, sweep: .pi), // opens right
+            RadialArc(start: .pi / 2, sweep: .pi), // opens left
+            RadialArc(start: 0, sweep: .pi), // opens up
+            RadialArc(start: .pi, sweep: .pi), // opens down
+        ])
+
+        let centre = CGPoint(x: frame.midX, y: frame.midY)
+        var best = Plan(arc: .fullCircle, radius: full)
+        var bestOnScreen = -1
+
+        for candidate in candidates {
+            let candidateRadius = radius(count: count, arc: candidate)
+            let onScreen = offsets(count: count, radius: candidateRadius, arc: candidate)
+                .lazy
+                .map { offset in
+                    CGRect(
+                        x: centre.x + offset.x - petalDiameter / 2,
+                        y: centre.y + offset.y - petalDiameter / 2,
+                        width: petalDiameter,
+                        height: petalDiameter
+                    )
+                }
+                .filter(bounds.contains)
+                .count
+
+            if onScreen > bestOnScreen {
+                bestOnScreen = onScreen
+                best = Plan(arc: candidate, radius: candidateRadius)
+            }
+            if onScreen == count { break } // Can't do better than all of them.
+        }
+
+        return best
+    }
+
     /// Slack around the ring. A window clips its contents, and a petal is
     /// bigger than its circle: it carries a drop shadow and grows a little
     /// under the pointer. Without this the outer edge of every petal is cut.
