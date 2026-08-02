@@ -22,6 +22,7 @@ final class IslandPanelController {
     private let hostingView: NSHostingView<IslandView>
     private let dragger = PanelDragger()
     private var itemList: ItemListPanelController!
+    private var flower: RadialPanelController!
     private var cancellables: Set<AnyCancellable> = []
 
     var isVisible: Bool { panel.isVisible }
@@ -56,7 +57,7 @@ final class IslandPanelController {
         dragger.onFinish = { [weak self] in self?.rememberPosition() }
         // The drop-down can't keep up with a window the window server is
         // moving, so get it out of the way rather than have it trail behind.
-        dragger.onDragStart = { [weak self] in self?.itemList.hideNow() }
+        dragger.onDragStart = { [weak self] in self?.closeQuickAccess() }
 
         let islandPanel = panel
         itemList = ItemListPanelController(
@@ -64,12 +65,18 @@ final class IslandPanelController {
             anchorFrame: { islandPanel.frame },
             onEdit: onEdit
         )
+        flower = RadialPanelController(
+            state: state,
+            anchorFrame: { islandPanel.frame },
+            // The petals that didn't fit live in the list, so hand over to it.
+            onOverflow: { [weak self] in self?.itemList.showImmediately() }
+        )
         hostingView.rootView = IslandView(
             state: state,
             dragger: dragger,
             onEdit: onEdit,
             onHide: onHide,
-            onHandleHover: { [weak self] hovering in self?.itemList.handleHover(hovering) },
+            onHandleHover: { [weak self] hovering in self?.quickAccessHover(hovering) },
             onShowList: { [weak self] in self?.itemList.showImmediately() }
         )
 
@@ -97,8 +104,28 @@ final class IslandPanelController {
     }
 
     func hide() {
-        itemList.hideNow()
+        closeQuickAccess()
         panel.orderOut(nil)
+    }
+
+    // MARK: - Quick access
+
+    /// Hovering the collapsed pill opens whichever style is set — the list or
+    /// the flower, never both.
+    private func quickAccessHover(_ hovering: Bool) {
+        switch state.settings.quickAccess {
+        case .list:
+            flower.hideNow()
+            itemList.handleHover(hovering)
+        case .flower:
+            itemList.handleHover(false)
+            flower.handleHover(hovering)
+        }
+    }
+
+    private func closeQuickAccess() {
+        itemList.hideNow()
+        flower.hideNow()
     }
 
     func apply(visible: Bool) {

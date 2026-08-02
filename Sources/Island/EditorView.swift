@@ -28,6 +28,9 @@ struct EditorView: View {
             List(selection: $selection) {
                 ForEach(state.library.snippets) { snippet in
                     HStack(spacing: 8) {
+                        Circle()
+                            .fill(snippet.color?.dot ?? NeutralSwatch.dot)
+                            .frame(width: 7, height: 7)
                         Text(snippet.displayLabel)
                             .font(.system(size: 12.5))
                             .lineLimit(1)
@@ -127,6 +130,45 @@ struct EditorView: View {
     }
 }
 
+/// The fixed palette, plus "none". A row of swatches rather than a colour well:
+/// eight tones that were picked to sit together, and no way to land on neon.
+private struct ColourPicker: View {
+    @Binding var selection: SnippetColor?
+
+    var body: some View {
+        HStack(spacing: 7) {
+            swatch(nil, fill: NeutralSwatch.dot, help: "No colour")
+            ForEach(SnippetColor.allCases, id: \.self) { color in
+                swatch(color, fill: color.fill, help: color.title)
+            }
+        }
+    }
+
+    private func swatch(_ color: SnippetColor?, fill: Color, help: String) -> some View {
+        let isSelected = selection == color
+        return Button {
+            selection = color
+        } label: {
+            Circle()
+                .fill(fill)
+                .frame(width: 20, height: 20)
+                .overlay(
+                    Circle().strokeBorder(Color.primary.opacity(0.15), lineWidth: 1)
+                )
+                .overlay(
+                    Circle()
+                        .strokeBorder(Color.primary.opacity(isSelected ? 0.85 : 0), lineWidth: 1.5)
+                        .padding(-3)
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(help)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
 /// The editing form for one snippet. Keeps a local copy so typing stays smooth,
 /// and pushes every change up so nothing needs saving by hand.
 private struct SnippetForm: View {
@@ -144,6 +186,13 @@ private struct SnippetForm: View {
                 TextField("Shown on the chip", text: $draft.label)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 13))
+            }
+
+            field(title: "Colour") {
+                VStack(alignment: .leading, spacing: 7) {
+                    ColourPicker(selection: $draft.color)
+                    colourLegend
+                }
             }
 
             field(title: "Content") {
@@ -176,6 +225,12 @@ private struct SnippetForm: View {
                 .foregroundStyle(.secondary)
             content()
         }
+    }
+
+    private var colourLegend: some View {
+        Text("Shows as a dot on the chip, and fills the item's circle in flower mode.")
+            .font(.system(size: 11))
+            .foregroundStyle(.tertiary)
     }
 
     private var placeholderLegend: some View {

@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import IslandCore
 
 /// Shared look of the island: flat surfaces, hairline rules, one warm accent.
 /// No gradients, no glows — it should read like a well-set page, not a toy.
@@ -40,6 +41,40 @@ struct IslandSurface: ViewModifier {
 
 extension View {
     func islandSurface() -> some View { modifier(IslandSurface()) }
+}
+
+extension NSColor {
+    convenience init(_ rgb: RGB) {
+        self.init(srgbRed: rgb.red, green: rgb.green, blue: rgb.blue, alpha: 1)
+    }
+}
+
+extension Color {
+    init(_ rgb: RGB) {
+        self.init(nsColor: NSColor(rgb))
+    }
+}
+
+extension SnippetColor {
+    /// Petal fill — always the full-strength tone, so white text reads on it in
+    /// either appearance.
+    var fill: Color { Color(solid) }
+
+    /// The dot on a chip, which sits on the window background and so has to
+    /// change with the appearance.
+    var dot: Color {
+        Color(nsColor: NSColor(name: nil) { [solid, light] appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(light)
+                : NSColor(solid)
+        })
+    }
+}
+
+/// What an item with no colour set looks like.
+enum NeutralSwatch {
+    static let fill = Color(white: 0.36)
+    static let dot = Color.primary.opacity(0.28)
 }
 
 /// The app mark: the island bar, and under it the two lines of text it feeds.

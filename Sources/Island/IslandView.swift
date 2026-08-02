@@ -159,11 +159,15 @@ struct SnippetChip: View {
     @State private var isHovering = false
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             if isConfirmed {
                 Image(systemName: "checkmark")
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(Theme.accent)
+            } else if let color = snippet.color {
+                Circle()
+                    .fill(color.dot)
+                    .frame(width: 6, height: 6)
             }
             Text(snippet.displayLabel)
                 .font(.system(size: 12, weight: .medium))

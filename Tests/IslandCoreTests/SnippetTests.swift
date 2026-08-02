@@ -71,9 +71,67 @@ final class SnippetTests: XCTestCase {
     }
 
     func testCodableRoundTrip() throws {
-        let snippet = Snippet(label: "Signature", content: "Best,\nSouhaib")
+        let snippet = Snippet(label: "Signature", content: "Best,\nSouhaib", color: .teal)
         let data = try JSONEncoder().encode(snippet)
         let decoded = try JSONDecoder().decode(Snippet.self, from: data)
         XCTAssertEqual(decoded, snippet)
+        XCTAssertEqual(decoded.color, .teal)
+    }
+
+    // MARK: - Colour
+
+    func testAnItemStartsWithNoColour() {
+        XCTAssertNil(Snippet(label: "Email", content: "x").color)
+    }
+
+    func testAnItemSavedBeforeColoursExistedStillLoads() throws {
+        let json = Data(#"{"id":"6B2B4B1E-9C7B-4E2E-9E2C-2C9C1B7F3A11","label":"Email","content":"x"}"#.utf8)
+        let decoded = try JSONDecoder().decode(Snippet.self, from: json)
+        XCTAssertEqual(decoded.label, "Email")
+        XCTAssertNil(decoded.color)
+    }
+
+    func testAnUnknownColourNameDoesNotThrowAwayTheItem() throws {
+        // A palette entry from a newer build, or a hand-edited file.
+        let json = Data(#"{"id":"6B2B4B1E-9C7B-4E2E-9E2C-2C9C1B7F3A11","label":"Email","content":"x","color":"chartreuse"}"#.utf8)
+        let decoded = try JSONDecoder().decode(Snippet.self, from: json)
+        XCTAssertEqual(decoded.label, "Email")
+        XCTAssertEqual(decoded.content, "x")
+        XCTAssertNil(decoded.color)
+    }
+
+    func testAMissingLabelOrContentDecodesAsEmpty() throws {
+        let json = Data(#"{"id":"6B2B4B1E-9C7B-4E2E-9E2C-2C9C1B7F3A11"}"#.utf8)
+        let decoded = try JSONDecoder().decode(Snippet.self, from: json)
+        XCTAssertEqual(decoded.label, "")
+        XCTAssertEqual(decoded.content, "")
+    }
+
+    // MARK: - Initials
+
+    func testInitialsOfTwoWords() {
+        XCTAssertEqual(Snippet(label: "Work Email", content: "x").initials, "WE")
+    }
+
+    func testInitialsOfOneWord() {
+        XCTAssertEqual(Snippet(label: "Email", content: "x").initials, "E")
+    }
+
+    func testInitialsSplitOnDashesAndUnderscores() {
+        XCTAssertEqual(Snippet(label: "work-email", content: "x").initials, "WE")
+        XCTAssertEqual(Snippet(label: "work_email", content: "x").initials, "WE")
+    }
+
+    func testInitialsUseOnlyTheFirstTwoWords() {
+        XCTAssertEqual(Snippet(label: "one two three four", content: "x").initials, "OT")
+    }
+
+    func testInitialsFallBackThroughTheDisplayLabel() {
+        XCTAssertEqual(Snippet(label: "", content: "hello there").initials, "HT")
+        XCTAssertEqual(Snippet(label: "", content: "").initials, "U")
+    }
+
+    func testInitialsOfAnEmojiLabel() {
+        XCTAssertEqual(Snippet(label: "👋 wave", content: "x").initials, "👋W")
     }
 }

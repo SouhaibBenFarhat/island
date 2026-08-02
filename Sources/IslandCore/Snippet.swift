@@ -6,11 +6,42 @@ public struct Snippet: Identifiable, Codable, Equatable, Sendable {
     public var id: UUID
     public var label: String
     public var content: String
+    /// Optional tint — a dot on the chip, and the fill of its flower petal.
+    public var color: SnippetColor?
 
-    public init(id: UUID = UUID(), label: String = "", content: String = "") {
+    public init(
+        id: UUID = UUID(),
+        label: String = "",
+        content: String = "",
+        color: SnippetColor? = nil
+    ) {
         self.id = id
         self.label = label
         self.content = content
+        self.color = color
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        label = try container.decodeIfPresent(String.self, forKey: .label) ?? ""
+        content = try container.decodeIfPresent(String.self, forKey: .content) ?? ""
+        // A colour name this build doesn't know — a palette entry added later,
+        // or a hand-edited file — leaves the item uncoloured rather than
+        // failing the whole library.
+        let name = try? container.decodeIfPresent(String.self, forKey: .color)
+        color = name.flatMap { $0 }.flatMap(SnippetColor.init(rawValue:))
+    }
+
+    /// One or two letters for the flower petal, where there's no room for the
+    /// whole label.
+    public var initials: String {
+        let words = displayLabel
+            .split(whereSeparator: { $0.isWhitespace || $0 == "-" || $0 == "_" })
+            .prefix(2)
+        let letters = words.compactMap { $0.first }
+        if letters.isEmpty { return "?" }
+        return String(letters).uppercased()
     }
 
     /// What the chip shows. Falls back to the first line of the content, so an
