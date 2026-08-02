@@ -53,20 +53,58 @@ public enum PanelPlacement {
         return (visible.width * visible.height) / area >= minimumVisibleFraction
     }
 
-    /// The frame to actually use: the remembered one when it still lands on a
-    /// screen, otherwise the default spot.
+    /// The screen a frame sits on: whichever it overlaps most. Nil when it
+    /// overlaps none of them, which is what an unplugged display looks like.
+    public static func bestScreen(for frame: CGRect, among screens: [CGRect]) -> CGRect? {
+        var best: CGRect?
+        var bestArea: CGFloat = 0
+        for screen in screens {
+            let overlap = frame.intersection(screen)
+            guard !overlap.isNull else { continue }
+            let area = overlap.width * overlap.height
+            if area > bestArea {
+                bestArea = area
+                best = screen
+            }
+        }
+        return best
+    }
+
+    /// The frame to actually use, considering every connected display.
+    ///
+    /// A position saved on a second monitor has to be checked against that
+    /// monitor, not the main one — otherwise every relaunch drags the island
+    /// back to the built-in screen.
+    public static func resolveFrame(
+        savedOrigin: CGPoint?,
+        size: CGSize,
+        screens: [CGRect],
+        preferred: CGRect,
+        topInset: CGFloat = defaultTopInset
+    ) -> CGRect {
+        if let savedOrigin {
+            let saved = CGRect(origin: savedOrigin, size: size)
+            if let screen = bestScreen(for: saved, among: screens),
+               isReasonablyVisible(saved, in: screen) {
+                return clamp(saved, into: screen)
+            }
+        }
+        return CGRect(origin: defaultOrigin(for: size, in: preferred, topInset: topInset), size: size)
+    }
+
+    /// Single-screen convenience.
     public static func resolveFrame(
         savedOrigin: CGPoint?,
         size: CGSize,
         in bounds: CGRect,
         topInset: CGFloat = defaultTopInset
     ) -> CGRect {
-        if let savedOrigin {
-            let saved = CGRect(origin: savedOrigin, size: size)
-            if isReasonablyVisible(saved, in: bounds) {
-                return clamp(saved, into: bounds)
-            }
-        }
-        return CGRect(origin: defaultOrigin(for: size, in: bounds, topInset: topInset), size: size)
+        resolveFrame(
+            savedOrigin: savedOrigin,
+            size: size,
+            screens: [bounds],
+            preferred: bounds,
+            topInset: topInset
+        )
     }
 }

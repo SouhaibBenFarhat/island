@@ -113,6 +113,70 @@ final class PanelPlacementTests: XCTestCase {
         XCTAssertEqual(frame.origin, PanelPlacement.defaultOrigin(for: barSize, in: screen))
     }
 
+    // MARK: - Several displays
+
+    /// A 3440-wide monitor sitting to the right of the built-in screen.
+    private var secondScreen: CGRect { CGRect(x: 2560, y: 0, width: 3440, height: 1440) }
+    private var builtIn: CGRect { CGRect(x: 0, y: 0, width: 2560, height: 1410) }
+
+    func testBestScreenPicksTheOneWithTheMostOverlap() {
+        let onSecond = CGRect(x: 4492, y: 333, width: 320, height: 44)
+        XCTAssertEqual(
+            PanelPlacement.bestScreen(for: onSecond, among: [builtIn, secondScreen]),
+            secondScreen
+        )
+    }
+
+    func testBestScreenWithNoOverlapIsNil() {
+        let nowhere = CGRect(x: 9_000, y: 9_000, width: 320, height: 44)
+        XCTAssertNil(PanelPlacement.bestScreen(for: nowhere, among: [builtIn, secondScreen]))
+    }
+
+    func testBestScreenWithNoScreensIsNil() {
+        XCTAssertNil(PanelPlacement.bestScreen(for: CGRect(x: 0, y: 0, width: 10, height: 10), among: []))
+    }
+
+    func testStraddlingTwoScreensPicksTheLargerShare() {
+        // 100 points on the built-in, 220 on the second.
+        let straddling = CGRect(x: 2460, y: 300, width: 320, height: 44)
+        XCTAssertEqual(
+            PanelPlacement.bestScreen(for: straddling, among: [builtIn, secondScreen]),
+            secondScreen
+        )
+    }
+
+    func testAPositionOnASecondMonitorSurvivesARelaunch() {
+        // The regression: checked against the main screen alone, this looked
+        // off-screen and the island jumped back to the built-in display.
+        let saved = CGPoint(x: 4492, y: 333)
+        let frame = PanelPlacement.resolveFrame(
+            savedOrigin: saved,
+            size: barSize,
+            screens: [builtIn, secondScreen],
+            preferred: builtIn
+        )
+        XCTAssertEqual(frame.origin, saved)
+    }
+
+    func testAPositionOnAnUnpluggedMonitorFallsBackToThePreferredScreen() {
+        let frame = PanelPlacement.resolveFrame(
+            savedOrigin: CGPoint(x: 4492, y: 333),
+            size: barSize,
+            screens: [builtIn],
+            preferred: builtIn
+        )
+        XCTAssertEqual(frame.origin, PanelPlacement.defaultOrigin(for: barSize, in: builtIn))
+    }
+
+    func testSingleScreenResolveStillBehavesTheSame() {
+        XCTAssertEqual(
+            PanelPlacement.resolveFrame(savedOrigin: nil, size: barSize, in: screen),
+            PanelPlacement.resolveFrame(
+                savedOrigin: nil, size: barSize, screens: [screen], preferred: screen
+            )
+        )
+    }
+
     func testResolveNudgesASlightlyOverhangingBarBackOn() {
         // Mostly visible, so it is kept — but pulled fully inside.
         let saved = CGPoint(x: screen.maxX - 200, y: 100)
