@@ -16,6 +16,24 @@ enum TextInserter {
     /// receiving app's input queue.
     private static let typingDelay = Duration.milliseconds(4)
 
+    /// The insert currently in flight. Inserts queue behind it rather than
+    /// overlapping: two clicks less than `clipboardRestoreDelay` apart used to
+    /// have the second one snapshot Island's *own* text as "the user's
+    /// clipboard", and the first then refused to restore because the change
+    /// count had moved — losing whatever the user had copied, for good.
+    private static var pending: Task<Void, Never>?
+
+    /// What the user had on the clipboard before Island started borrowing it.
+    /// Held for the whole run of queued inserts, so `{{clipboard}}` and the
+    /// restore both see the real thing rather than the last snippet inserted.
+    private static var borrowedClipboard: ClipboardSnapshot?
+
+    /// The clipboard as the user would see it — Island's own in-flight text
+    /// never counts.
+    static var userClipboardString: String {
+        borrowedClipboard?.string ?? NSPasteboard.general.string(forType: .string) ?? ""
+    }
+
     static func insert(_ text: String, using method: InsertMethod, spaceIfNeeded: Bool) {
         guard !text.isEmpty else { return }
 
@@ -24,7 +42,10 @@ enum TextInserter {
         let tracker = FrontmostAppTracker.shared
         let reactivated = tracker.isIslandFrontmost && tracker.restoreExternalApp()
 
-        Task { @MainActor in
+        let previous = pending
+        pending = Task { @MainActor in
+            await previous?.value
+
             if reactivated { try? await Task.sleep(for: activationDelay) }
 
             // Read the cursor's surroundings only now: before this point the
@@ -45,7 +66,12 @@ enum TextInserter {
 
     private static func pasteViaClipboard(_ text: String) async {
         let pasteboard = NSPasteboard.general
-        let snapshot = ClipboardSnapshot(of: pasteboard)
+
+        // Only the first insert of a run captures the clipboard; the ones
+        // queued behind it would only capture Island's own text.
+        if borrowedClipboard == nil {
+            borrowedClipboard = ClipboardSnapshot(of: pasteboard)
+        }
 
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
@@ -54,10 +80,15 @@ enum TextInserter {
         postCommandV()
 
         try? await Task.sleep(for: clipboardRestoreDelay)
+
         // If something else has written to the clipboard in the meantime, that
         // is now the user's clipboard — don't stomp on it.
-        guard pasteboard.changeCount == ourChangeCount else { return }
-        snapshot.restore(to: pasteboard)
+        guard pasteboard.changeCount == ourChangeCount else {
+            borrowedClipboard = nil
+            return
+        }
+        borrowedClipboard?.restore(to: pasteboard)
+        borrowedClipboard = nil
     }
 
     private static func postCommandV() {
@@ -112,6 +143,16 @@ private struct ClipboardSnapshot {
     private static let maximumItemSize = 4 * 1_024 * 1_024
 
     private let items: [[NSPasteboard.PasteboardType: Data]]
+
+    /// The plain text of the snapshot, for `{{clipboard}}`.
+    var string: String? {
+        for item in items {
+            if let data = item[.string], let text = String(data: data, encoding: .utf8) {
+                return text
+            }
+        }
+        return nil
+    }
 
     init(of pasteboard: NSPasteboard) {
         items = (pasteboard.pasteboardItems ?? []).map { item in
