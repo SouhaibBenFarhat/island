@@ -24,9 +24,14 @@ appears in the field your cursor is already in — no switching, no pasting.
 
 - **One click, any app** — Mail, Slack, a browser form, a terminal. The island
   never takes focus, so the text goes where your cursor was
-- **Floats everywhere** — drag it anywhere, on any Space, over full-screen apps
+- **Floats everywhere** — drag it from anywhere on the bar, on any Space, over
+  full-screen apps
 - **Collapses to a pill** when you want the pixels back, and hides completely
   from the menu bar
+- **Hover the pill** to drop down the full list of items, each with a preview
+  of the text it inserts
+- **Spaces itself** — inserting after a word adds the separating space for you,
+  so you get `ping me on you@example.com`, not `ping me onyou@example.com`
 - **Placeholders** — `{{date}}`, `{{time}}`, `{{clipboard}}`, `{{uuid}}` and
   custom formats like `{{date:MMM d, yyyy}}`, expanded at the moment you click
 - **Two insert methods** — paste (fast, restores your clipboard afterwards) or

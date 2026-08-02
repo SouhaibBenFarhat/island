@@ -8,6 +8,11 @@ struct IslandView: View {
     let dragger: PanelDragger
     var onEdit: () -> Void
     var onHide: () -> Void
+    /// Hovering the collapsed pill opens the drop-down of every stored item.
+    /// The expanded bar doesn't do this — the chips are already on screen, so
+    /// a list on top of them is just noise.
+    var onHandleHover: (Bool) -> Void = { _ in }
+    var onShowList: () -> Void = {}
 
     var body: some View {
         Group {
@@ -34,10 +39,12 @@ struct IslandView: View {
             .frame(height: Theme.barHeight - 10)
             .contentShape(Rectangle())
             .islandDraggable(dragger, onTap: toggleCollapsed)
+            .onHover(perform: onHandleHover)
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel("Show Island items")
-            .help("Click to show your items · drag to move")
-            .background(DragCatcher(dragger: dragger))
+            .help("Hover to list your items · click to expand · drag to move")
+            // No DragCatcher here: the pill *is* the handle, and a second
+            // gesture over the same spot only causes trouble.
             .islandSurface()
     }
 
@@ -69,7 +76,7 @@ struct IslandView: View {
                         action: { state.insert(snippet) }
                     )
                 }
-                if !overflowSnippets.isEmpty { overflowMenu }
+                if !overflowSnippets.isEmpty { overflowButton }
             }
 
             rule
@@ -115,22 +122,15 @@ struct IslandView: View {
             .help("Island needs Accessibility access to type into other apps")
     }
 
-    private var overflowMenu: some View {
-        Menu {
-            ForEach(overflowSnippets) { snippet in
-                Button(snippet.displayLabel) { state.insert(snippet) }
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 26, height: 26)
-                .background(Theme.chipRest, in: RoundedRectangle(cornerRadius: Theme.chipCornerRadius, style: .continuous))
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .frame(width: 26)
-        .help("\(overflowSnippets.count) more items")
+    /// The chips that didn't fit live in the drop-down, so this just opens it.
+    private var overflowButton: some View {
+        IconButton(
+            symbol: "ellipsis",
+            help: "\(overflowSnippets.count) more items — hover to list them all",
+            dragger: dragger,
+            action: onShowList
+        )
+        .onHover(perform: onHandleHover)
     }
 
     // MARK: - Data
@@ -261,48 +261,76 @@ final class PanelDragger {
     /// click on a chip still inserts its text.
     static let dragThreshold: CGFloat = 3
 
+    /// How long after the button comes up we keep treating callbacks as the
+    /// tail of the drag rather than a new click.
+    private static let settleWindow: TimeInterval = 0.3
+
     weak var panel: NSPanel?
+    /// Called once the drag is over, to save where the island ended up.
     var onFinish: (() -> Void)?
+    /// Called the moment a drag really starts, before the window moves.
+    var onDragStart: (() -> Void)?
 
     private enum Phase {
         case idle
         /// Mouse is down but hasn't travelled far enough to be a drag yet.
         case pressed(start: CGPoint)
-        /// A drag ran to completion; the click that ends it must be swallowed.
+        /// A drag is running, or has just finished and is still settling.
         case dragged
     }
 
     private var phase: Phase = .idle
+    private var lastDragActivity: TimeInterval = -.infinity
+
+    private var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
+    private var isSettling: Bool { now - lastDragActivity < Self.settleWindow }
+    private var isButtonDown: Bool { NSEvent.pressedMouseButtons & 1 != 0 }
 
     func update() {
         switch phase {
+        case .idle:
+            // Ignore the tail of a drag that just ended; starting a fresh press
+            // here is what turned the end of a drag into a click.
+            guard !isSettling else { return }
+            phase = .pressed(start: NSEvent.mouseLocation)
+
         case .pressed(let start):
             let mouse = NSEvent.mouseLocation
             guard hypot(mouse.x - start.x, mouse.y - start.y) >= Self.dragThreshold else { return }
             beginDrag()
 
-        case .idle:
-            phase = .pressed(start: NSEvent.mouseLocation)
-
         case .dragged:
-            // `performDrag` swallows the mouse-up, so SwiftUI may never send
-            // .onEnded and clear this. If the button is down again it's a new
-            // gesture; otherwise it's a stray event from the one just finished.
-            guard NSEvent.pressedMouseButtons & 1 != 0 else { return }
+            // `performDrag` hands the drag to the window server and can return
+            // straight away, so "still dragging" is the button still being
+            // down — not whether that call has come back.
+            if isButtonDown {
+                lastDragActivity = now
+                return
+            }
+            // Button is up. Hold on a little longer so the callbacks that close
+            // out this drag can't be read as a press.
+            guard !isSettling else { return }
+            endDrag()
             phase = .pressed(start: NSEvent.mouseLocation)
         }
     }
 
     /// Ends the gesture. Returns true when it was a real drag, so the caller
     /// knows to skip the click action.
+    ///
+    /// More than one gesture can be live over the same spot (a chip and the bar
+    /// behind it), so this has to answer "that was a drag" to *every* caller,
+    /// not just the first — hence the settle window rather than a flag the
+    /// first finisher consumes.
     @discardableResult
     func finish() -> Bool {
+        var wasDrag = isSettling
         if case .dragged = phase {
-            phase = .idle
-            return true
+            wasDrag = true
+            endDrag()
         }
         phase = .idle
-        return false
+        return wasDrag
     }
 
     private func beginDrag() {
@@ -310,7 +338,15 @@ final class PanelDragger {
             return // No usable event yet — try again on the next update.
         }
         phase = .dragged
-        panel.performDrag(with: event) // Blocks until you let go.
+        lastDragActivity = now
+        onDragStart?()
+        panel.performDrag(with: event)
+    }
+
+    /// Records the resting place. Called when the drag is genuinely over, not
+    /// when `performDrag` returns — those are not the same moment.
+    private func endDrag() {
+        lastDragActivity = now
         onFinish?()
     }
 }

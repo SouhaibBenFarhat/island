@@ -90,7 +90,11 @@ final class AppState: ObservableObject {
             text = snippet.content
         }
 
-        TextInserter.insert(text, using: settings.insertMethod)
+        TextInserter.insert(
+            text,
+            using: settings.insertMethod,
+            spaceIfNeeded: settings.spaceBeforeInsert
+        )
         flashInserted(snippet.id)
     }
 
