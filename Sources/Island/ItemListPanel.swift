@@ -225,15 +225,20 @@ private struct ItemRow: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(snippet.displayLabel)
-                    .font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(Color.primary.opacity(0.9))
-                    .lineLimit(1)
-                Text(snippet.isEmpty ? "No text yet" : snippet.contentPreview)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(snippet.color?.dot ?? NeutralSwatch.dot)
+                    .frame(width: 7, height: 7)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(snippet.displayLabel)
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundStyle(Color.primary.opacity(0.9))
+                        .lineLimit(1)
+                    Text(snippet.isEmpty ? "No text yet" : snippet.contentPreview)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 9)

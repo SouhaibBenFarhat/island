@@ -123,14 +123,6 @@ text(
     attributes(size: 15, color: muted)
 )
 
-// MARK: - Right column: the island, and the field it types into
-
-let right: CGFloat = 656
-
-// The island bar
-let barHeight: CGFloat = 62
-var cursor = right + 18
-let barTop: CGFloat = 176
 
 func islandMark(x: CGFloat, centerY: CGFloat, width markWidth: CGFloat) {
     let gap = markWidth * 0.115
@@ -149,64 +141,80 @@ func islandMark(x: CGFloat, centerY: CGFloat, width markWidth: CGFloat) {
                  xRadius: lineHeight / 2, yRadius: lineHeight / 2).fill()
 }
 
-let chips = ["Email", "Signature", "Today"]
-let chipAttrs = attributes(size: 13.5, weight: .medium, color: ink)
-let chipHighlightAttrs = attributes(size: 13.5, weight: .medium, color: accent)
+// MARK: - Right column: the island, and the field it types into
 
-// Work out how wide the bar needs to be before drawing it.
-var barWidth: CGFloat = 18 + 20 + 14 + 1 + 14 // padding, mark, gap, rule, gap
-for chip in chips { barWidth += measure(chip, chipAttrs).width + 22 + 7 }
-barWidth += 14 + 1 + 14 + 30 + 18 // rule, gap, plus button, padding
+let right: CGFloat = 898 // centre of the right column
 
-let bar = CGRect(x: right, y: barTop, width: barWidth, height: barHeight)
-fill(bar, surface, radius: 18)
-stroke(bar, line, radius: 18)
+// The flower: the collapsed island ringed by its items.
+let ringCentre = CGPoint(x: right, y: 215)
+let ringRadius: CGFloat = 68
+let petalDiameter: CGFloat = 42
 
-islandMark(x: cursor, centerY: bar.midY, width: 20)
-cursor += 20 + 14
-fill(CGRect(x: cursor, y: bar.midY - 11, width: 1, height: 22), line)
-cursor += 1 + 14
+let petals: [(caption: String, colour: NSColor)] = [
+    ("E", hex(0xB4552E)),
+    ("S", hex(0x2F7069)),
+    ("T", hex(0xB8862B)),
+    ("TI", hex(0x4C4A8C)),
+    ("A", hex(0x6E7F3F)),
+    ("WE", hex(0x7A3F63)),
+]
 
-for (index, chip) in chips.enumerated() {
-    let size = measure(chip, chipAttrs)
-    let chipRect = CGRect(x: cursor, y: bar.midY - 15, width: size.width + 22, height: 30)
-    let isActive = index == 0
-    fill(chipRect, isActive ? accent.withAlphaComponent(0.16) : chipFill, radius: 8)
-    let attrs = isActive ? chipHighlightAttrs : chipAttrs
-    text(chip, at: CGPoint(x: chipRect.minX + 11, y: chipRect.midY - size.height / 2), attrs)
-    cursor += chipRect.width + 7
+let petalAttrs = attributes(size: 14, weight: .semibold, color: .white)
+
+for (index, petal) in petals.enumerated() {
+    // Start at the top and work clockwise. The context is flipped, so y grows
+    // downwards and -90° points up.
+    let angle = (-90 + 60 * CGFloat(index)) * .pi / 180
+    let centre = CGPoint(
+        x: ringCentre.x + cos(angle) * ringRadius,
+        y: ringCentre.y + sin(angle) * ringRadius
+    )
+    let circle = CGRect(
+        x: centre.x - petalDiameter / 2,
+        y: centre.y - petalDiameter / 2,
+        width: petalDiameter,
+        height: petalDiameter
+    )
+    petal.colour.setFill()
+    NSBezierPath(ovalIn: circle).fill()
+    stroke(circle, NSColor.white.withAlphaComponent(0.22), radius: petalDiameter / 2)
+
+    let size = measure(petal.caption, petalAttrs)
+    text(
+        petal.caption,
+        at: CGPoint(x: centre.x - size.width / 2, y: centre.y - size.height / 2),
+        petalAttrs
+    )
 }
 
-cursor += 7
-fill(CGRect(x: cursor, y: bar.midY - 11, width: 1, height: 22), line)
-cursor += 1 + 14
+// The pill itself, sitting in the middle of the ring.
+let pill = CGRect(x: ringCentre.x - 22, y: ringCentre.y - 17, width: 44, height: 34)
+fill(pill, surface, radius: 17)
+stroke(pill, line, radius: 17)
+islandMark(x: pill.midX - 10, centerY: pill.midY, width: 20)
 
-let plusRect = CGRect(x: cursor, y: bar.midY - 15, width: 30, height: 30)
-fill(plusRect, chipFill, radius: 8)
-muted.setFill()
-NSBezierPath(roundedRect: CGRect(x: plusRect.midX - 5.5, y: plusRect.midY - 0.75, width: 11, height: 1.5), xRadius: 0.75, yRadius: 0.75).fill()
-NSBezierPath(roundedRect: CGRect(x: plusRect.midX - 0.75, y: plusRect.midY - 5.5, width: 1.5, height: 11), xRadius: 0.75, yRadius: 0.75).fill()
-
-// The connector: text travelling from the island down into the field.
-let connectorX = bar.minX + 60
-line.setStroke()
+// The connector: text travelling from the flower down into the field.
+let ringBottom = ringCentre.y + ringRadius + petalDiameter / 2
+// A touch lighter than the panel borders, or the dashes vanish into the
+// background at social-preview size.
+hex(0x3A404B).setStroke()
 let connector = NSBezierPath()
-connector.move(to: CGPoint(x: connectorX, y: bar.maxY + 12))
-connector.line(to: CGPoint(x: connectorX, y: bar.maxY + 52))
+connector.move(to: CGPoint(x: right, y: ringBottom + 10))
+connector.line(to: CGPoint(x: right, y: ringBottom + 48))
 connector.lineWidth = 1.5
 connector.setLineDash([4, 5], count: 2, phase: 0)
 connector.stroke()
 
 accent.setFill()
 let arrow = NSBezierPath()
-arrow.move(to: CGPoint(x: connectorX, y: bar.maxY + 62))
-arrow.line(to: CGPoint(x: connectorX - 5.5, y: bar.maxY + 52))
-arrow.line(to: CGPoint(x: connectorX + 5.5, y: bar.maxY + 52))
+arrow.move(to: CGPoint(x: right, y: ringBottom + 58))
+arrow.line(to: CGPoint(x: right - 5.5, y: ringBottom + 48))
+arrow.line(to: CGPoint(x: right + 5.5, y: ringBottom + 48))
 arrow.close()
 arrow.fill()
 
 // The field being typed into
-let field = CGRect(x: right, y: barTop + barHeight + 82, width: barWidth, height: 146)
+let field = CGRect(x: right - 210, y: 374, width: 420, height: 140)
 fill(field, surfaceDim, radius: 14)
 stroke(field, line, radius: 14)
 
@@ -225,8 +233,8 @@ fill(
 )
 
 // Two dim lines standing in for the rest of the message.
-fill(CGRect(x: field.minX + 22, y: field.minY + 100, width: 240, height: 7), hex(0x272B33), radius: 3.5)
-fill(CGRect(x: field.minX + 22, y: field.minY + 118, width: 160, height: 7), hex(0x21252B), radius: 3.5)
+fill(CGRect(x: field.minX + 22, y: field.minY + 96, width: 220, height: 7), hex(0x272B33), radius: 3.5)
+fill(CGRect(x: field.minX + 22, y: field.minY + 114, width: 148, height: 7), hex(0x21252B), radius: 3.5)
 
 NSGraphicsContext.restoreGraphicsState()
 

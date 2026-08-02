@@ -28,8 +28,11 @@ appears in the field your cursor is already in — no switching, no pasting.
   full-screen apps
 - **Collapses to a pill** when you want the pixels back, and hides completely
   from the menu bar
-- **Hover the pill** to drop down the full list of items, each with a preview
-  of the text it inserts
+- **Hover the pill** for quick access, in either of two styles: a **list** with
+  a preview of each item's text, or a **flower** — coloured circles ringed
+  around the island, click one to insert it
+- **Colour your items** from a fixed palette of eight muted tones; the colour
+  shows as a dot on the chip and fills the item's circle in flower mode
 - **Spaces itself** — inserting after a word adds the separating space for you,
   so you get `ping me on you@example.com`, not `ping me onyou@example.com`
 - **Placeholders** — `{{date}}`, `{{time}}`, `{{clipboard}}`, `{{uuid}}` and

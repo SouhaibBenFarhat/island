@@ -7,6 +7,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(settings.insertMethod, .paste)
         XCTAssertTrue(settings.expandPlaceholders)
         XCTAssertTrue(settings.spaceBeforeInsert)
+        XCTAssertEqual(settings.quickAccess, .list)
         XCTAssertTrue(settings.isIslandVisible)
         XCTAssertFalse(settings.isCollapsed)
         XCTAssertNil(settings.panelOrigin)
@@ -67,5 +68,22 @@ final class SettingsTests: XCTestCase {
         for method in InsertMethod.allCases {
             XCTAssertFalse(method.title.isEmpty)
         }
+    }
+
+    func testQuickAccessStylesHaveTitles() {
+        for style in QuickAccessStyle.allCases {
+            XCTAssertFalse(style.title.isEmpty)
+        }
+    }
+
+    func testQuickAccessSurvivesEncoding() throws {
+        let settings = Settings(quickAccess: .flower)
+        let decoded = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(settings))
+        XCTAssertEqual(decoded.quickAccess, .flower)
+    }
+
+    func testASettingsFileWrittenBeforeFlowerModeKeepsTheList() throws {
+        let decoded = try JSONDecoder().decode(Settings.self, from: Data(#"{"isCollapsed":true}"#.utf8))
+        XCTAssertEqual(decoded.quickAccess, .list)
     }
 }

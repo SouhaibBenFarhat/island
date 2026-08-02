@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let spacingItem = NSMenuItem()
     private let accessibilityItem = NSMenuItem()
     private var insertMethodItems: [InsertMethod: NSMenuItem] = [:]
+    private var quickAccessItems: [QuickAccessStyle: NSMenuItem] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         FrontmostAppTracker.shared.start()
@@ -79,6 +80,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         insertItem.submenu = insertMenu
         menu.addItem(insertItem)
 
+        let quickAccessItem = NSMenuItem(title: "Hover Opens", action: nil, keyEquivalent: "")
+        let quickAccessMenu = NSMenu()
+        for style in QuickAccessStyle.allCases {
+            let item = NSMenuItem(title: style.title, action: #selector(chooseQuickAccess(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = style.rawValue
+            quickAccessMenu.addItem(item)
+            quickAccessItems[style] = item
+        }
+        quickAccessItem.submenu = quickAccessMenu
+        quickAccessItem.toolTip = "What hovering the collapsed island shows"
+        menu.addItem(quickAccessItem)
+
         placeholdersItem.title = "Expand {{placeholders}}"
         placeholdersItem.action = #selector(togglePlaceholders)
         placeholdersItem.target = self
@@ -122,6 +136,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for (method, item) in insertMethodItems {
             item.state = state.settings.insertMethod == method ? .on : .off
         }
+        for (style, item) in quickAccessItems {
+            item.state = state.settings.quickAccess == style ? .on : .off
+        }
     }
 
     // MARK: - Actions
@@ -155,6 +172,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
               let method = InsertMethod(rawValue: raw)
         else { return }
         state.settings.insertMethod = method
+    }
+
+    @objc private func chooseQuickAccess(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let style = QuickAccessStyle(rawValue: raw)
+        else { return }
+        state.settings.quickAccess = style
     }
 
     @objc private func openAccessibilitySettings() {
